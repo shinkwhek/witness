@@ -4,58 +4,57 @@ open Elmish
 open Bolero
 open Bolero.Html
 open Svg
-
-type Grid =
-  { width : int
-    height : int }
-
-type Point =
-  { row : int
-    column : int }
-
-type Path = Point * Point
+open Pazzle
+open PazzleParts
 
 type Model =
   { x : int
     grid : Grid
-    pathes : Path list }
+    pathes : Path list
+    elements : Element list }
 
 let initModel =
   { x = 0
     grid =
-      { width = 5
+      { pixelWidth = 500.
+        pixelHeight = 500.
+        width = 5
         height = 5 }
-    pathes = [] }
+    pathes = []
+    elements = [] }
+
+type IncDec =
+  | Width
+  | Height
 
 type Message =
-  | Inclise
-  | Declise
+  | Inclease of IncDec
+  | Declease of IncDec
 
 let update message model =
   match message with
-  | Inclise -> { model with x = model.x + 1 }
-  | Declise -> { model with x = model.x - 1 }
+  | Inclease Width -> { model with grid = { model.grid with width = model.grid.width + 1 } }
+  | Inclease Height -> { model with grid = { model.grid with height = model.grid.height + 1 } }
+  | Declease Width -> { model with grid = { model.grid with width = model.grid.width - 1 } }
+  | Declease Height -> { model with grid = { model.grid with height = model.grid.height - 1 } }
 
 let view model dispatch =
+  let grid = model.grid
   div []
-    [ svg [ "version" => "1.1" ]
-          [ path [ "fill" => "blue" ]
-                 [ moveTo 10 10 Global
-                   lineHorizontalTo 90 Global
-                   lineVertivalTo 90 Global 
-                   lineHorizontalTo 10 Global
-                   lineClose ]
-            circle [ "fill" => "red" ] 10 10 2
-            circle [ "fill" => "red" ] 90 90 2
-            circle [ "fill" => "red" ] 90 10 2
-            circle [ "fill" => "red" ] 10 90 2 
-            path [ "stroke" => "black"; "fill" => "transparent" ]
-                 [ moveTo 10 10 Global
-                   bezier3 (20, 20) (40, 20) 50 10 Global
-                   bezier3Link (150, 150) 180 80 Global
-                   moveTo 10 80 Global
-                   bezier2 (52.5, 10) 95 80 Global
-                   bezier2Link 180 80 Global ] ] ]
+    [ div [] [ text <| "pixelWidth: " + string grid.pixelWidth ]
+      div [] [ text <| "pixelHeight: " + string grid.pixelHeight ]
+      div [] [ p [] [ text <| "width: " + string grid.width ]
+               button [ on.click (fun _ -> dispatch (Inclease Width)) ] [ text "+" ]
+               button [ on.click (fun _ -> dispatch (Declease Width)) ] [ text "-" ] ]
+      div [] [ p [] [text <| "height: " + string grid.height ]
+               button [ on.click (fun _ -> dispatch (Inclease Height)) ] [ text "+" ]
+               button [ on.click (fun _ -> dispatch (Declease Height)) ] [ text "-" ] ]
+      div [] 
+        [svg [ "width" => grid.pixelWidth
+               "height" => grid.pixelHeight
+               "version" => "1.1" ]
+             (grid |> renderGrid)
+             ] ]
 
 type MyApp() =
   inherit ProgramComponent<Model, Message>()
