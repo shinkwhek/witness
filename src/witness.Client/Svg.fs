@@ -21,8 +21,6 @@ let inline lineTo x y t =
     | Relative -> "l "
   t + string x + " " + string y + " "
 
-
-
 let inline lineHorizontalTo x t =
   let t =
     match t with
@@ -90,3 +88,11 @@ let rect attrs x y width height =
                   "width" => width
                   "height" => height ] attrs
   elt "rect" attrs []
+
+let line attrs x1 y1 x2 y2 =
+  let attrs =
+    List.append [ "x1" => x1
+                  "y1" => y1
+                  "x2" => x2
+                  "y2" => y2 ] attrs
+  elt "line" attrs []

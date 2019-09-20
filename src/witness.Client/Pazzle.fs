@@ -6,7 +6,7 @@ type Grid =
     pixelHeight : float
     width : int
     height : int }
-
+  
 type Point =
   { row : float
     column : float }
@@ -14,7 +14,8 @@ type Point =
 type Path = Point * Point
 
 type Element =
-  | Entry of Point
+  | Entry of pos: Point
+  | Goal of pos: Point
 
 type Color =
   | Black

@@ -5,7 +5,9 @@ open Bolero
 open Bolero.Html
 open Svg
 open Pazzle
-open PazzleParts
+open PazzleRender
+
+let inline (|?) x y = List.append x y
 
 type Model =
   { x : int
@@ -21,7 +23,8 @@ let initModel =
         width = 5
         height = 5 }
     pathes = []
-    elements = [] }
+    elements = [ Entry {row=0.0; column=0.0}
+                 Goal {row=0.0; column=4.0} ] }
 
 type IncDec =
   | Width
@@ -40,6 +43,9 @@ let update message model =
 
 let view model dispatch =
   let grid = model.grid
+  let elements = model.elements
+  let render = (grid |> renderGrid)
+                |? (grid |> renderElements elements)
   div []
     [ div [] [ text <| "pixelWidth: " + string grid.pixelWidth ]
       div [] [ text <| "pixelHeight: " + string grid.pixelHeight ]
@@ -53,8 +59,7 @@ let view model dispatch =
         [svg [ "width" => grid.pixelWidth
                "height" => grid.pixelHeight
                "version" => "1.1" ]
-             (grid |> renderGrid)
-             ] ]
+             render ] ]
 
 type MyApp() =
   inherit ProgramComponent<Model, Message>()
