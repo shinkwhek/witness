@@ -39,22 +39,46 @@ let initModel =
 
 /// ---- ---- message ---- ----
 
-type IncDec =
-  | Width
-  | Height
+type GridWH =
+  | GridWidth
+  | GridHeight
 
 type Message =
-  | Inclease of IncDec
-  | Declease of IncDec
+  | Inclease of GridWH
+  | Declease of GridWH
   | Mode of Mode
   | Position of Point
 
+let updateElementPosition model f wh =
+  let elements = model.elements
+  let endX, endY = model.grid.gridWidth - 1, model.grid.gridHeight - 1
+  let f = (fun x -> match x, wh with
+                      | Entry p, GridWidth when p.column = float endX ->
+                        Entry {row=p.row; column=f p.column} 
+                      | Entry p, GridHeight when p.row = float endY ->
+                        Entry {row=f p.row; column=p.column}
+                      | Goal p, GridWidth when p.column = float endX ->
+                        Goal {row=p.row; column=f p.column}
+                      | Goal p, GridHeight when p.row = float endY ->
+                        Goal {row=f p.row; column=p.column}
+                      | e, _ -> e )
+
+  { model with elements = List.map f elements }
+
 let update message model =
   match message with
-  | Inclease Width -> { model with grid = { model.grid with gridWidth = model.grid.gridWidth + 1 } }
-  | Inclease Height -> { model with grid = { model.grid with gridHeight = model.grid.gridHeight + 1 } }
-  | Declease Width -> { model with grid = { model.grid with gridWidth = model.grid.gridWidth - 1 } }
-  | Declease Height -> { model with grid = { model.grid with gridHeight = model.grid.gridHeight - 1 } }
+  | Inclease GridWidth ->
+    let model = updateElementPosition model (fun x -> x + 1.0) GridWidth
+    { model with grid = { model.grid with gridWidth = model.grid.gridWidth + 1 } }
+  | Inclease GridHeight ->
+    let model = updateElementPosition model (fun x -> x + 1.0) GridHeight
+    { model with grid = { model.grid with gridHeight = model.grid.gridHeight + 1 } }
+  | Declease GridWidth ->
+    let model = updateElementPosition model (fun x -> x - 1.0) GridWidth
+    { model with grid = { model.grid with gridWidth = model.grid.gridWidth - 1 } }
+  | Declease GridHeight ->
+    let model = updateElementPosition model (fun x -> x - 1.0) GridHeight
+    { model with grid = { model.grid with gridHeight = model.grid.gridHeight - 1 } }
   | Mode m -> { model with mode = m }
   | Position p -> { model with currentPositon = p }
 
@@ -94,12 +118,12 @@ let view model dispatch =
   div [ ]
     [ div [] [ text <| "pixelWidth: " + string grid.pixelWidth ]
       div [] [ text <| "pixelHeight: " + string grid.pixelHeight ]
-      div [] [ text <| "width: " + string grid.gridWidth
-               button [ on.click (fun _ -> dispatch (Inclease Width)) ] [ text "+" ]
-               button [ on.click (fun _ -> dispatch (Declease Width)) ] [ text "-" ] ]
-      div [] [ text <| "height: " + string grid.gridHeight
-               button [ on.click (fun _ -> dispatch (Inclease Height)) ] [ text "+" ]
-               button [ on.click (fun _ -> dispatch (Declease Height)) ] [ text "-" ] ]
+      div [] [ text <| "gridWidth: " + string grid.gridWidth
+               button [ on.click (fun _ -> dispatch (Inclease GridWidth)) ] [ text "+" ]
+               button [ on.click (fun _ -> dispatch (Declease GridWidth)) ] [ text "-" ] ]
+      div [] [ text <| "gridHeight: " + string grid.gridHeight
+               button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
+               button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
       div [] [ text <| "current postion: " + string model.currentPositon ]
       div [] 
         [svg [ "width" => grid.pixelWidth
