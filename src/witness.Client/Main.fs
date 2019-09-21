@@ -13,29 +13,29 @@ let inline (|?) x y = List.append x y
 
 type Mode =
   | Nothing
-  | PathDraw of entrypoint: Point * 
-                goal: Point option
+  | PathDraw of entrypoint: Point * goal: Point option
 
 type Model =
   { grid : Grid
     mode : Mode
-    currentPositon : Point
-    pathes : Path list
+    basePosition : Point option
+    currentPosition : Point
+    pathes : Point * Path list
     elements : Element list }
 
 let initModel =
   { grid =
-      { pixelWidth = 500.
-        pixelHeight = 500.
-        gridWidth = 5
-        gridHeight = 5 }
+      { gridWidth = 4
+        gridHeight = 4 }
     mode = Nothing
-    currentPositon = { row=0.0; column=0.0 }
-    pathes = [ ({row=0.0; column=0.0}, {row=0.0; column=1.0})
-               ({row=0.0; column=1.0}, {row=1.0; column=1.0})
-               ({row=1.0; column=1.0}, {row=1.0; column=2.0}) ]
+    basePosition = None
+    currentPosition = { row=0.0; column=0.0 }
+    pathes = {row=1.0; column=2.5},
+             [ ({row=0.0; column=1.0}, {row=1.0; column=1.0})
+               ({row=0.0; column=0.0}, {row=0.0; column=1.0}) ]
     elements = [ Entry {row=0.0; column=0.0}
-                 Goal {row=0.0; column=4.0} ] }
+                 Goal {row=0.0; column=3.0} ] }
+
 
 /// ---- ---- message ---- ----
 
@@ -48,6 +48,8 @@ type Message =
   | Declease of GridWH
   | Mode of Mode
   | Position of Point
+
+/// ---- ---- update ---- ----
 
 let updateElementPosition model f wh =
   let elements = model.elements
@@ -62,7 +64,6 @@ let updateElementPosition model f wh =
                       | Goal p, GridHeight when p.row = float endY ->
                         Goal {row=f p.row; column=p.column}
                       | e, _ -> e )
-
   { model with elements = List.map f elements }
 
 let update message model =
@@ -79,8 +80,11 @@ let update message model =
   | Declease GridHeight ->
     let model = updateElementPosition model (fun x -> x - 1.0) GridHeight
     { model with grid = { model.grid with gridHeight = model.grid.gridHeight - 1 } }
-  | Mode m -> { model with mode = m }
-  | Position p -> { model with currentPositon = p }
+  | Mode (PathDraw(p, po)) ->
+    { model with basePosition = Some model.currentPosition; mode = PathDraw(p, po) }
+  | Mode Nothing ->
+    { model with basePosition = None; mode = Nothing }
+  | Position p -> { model with currentPosition = p }
 
 /// ---- ---- view ---- ----
 
@@ -90,10 +94,13 @@ let renderElements dispatch model grid =
       match element with
       | Entry p ->
         yield renderEntry [ on.click
-                              (fun _ -> dispatch (Mode (PathDraw (p, None))))]
-                          p <| gridOffset grid
+                              (fun _ -> dispatch (Mode (PathDraw (p, None))))
+                            "stroke" => color2str Black
+                            "fill" => color2str Black ]
+                          p  grid
       | Goal p ->
-        yield renderGoal p <| gridOffset grid
+        yield renderGoal [ "stroke" => color2str Black
+                           "fill" => color2str Black ] p grid
   } |> Seq.toList
 
 let renderLightPath dispatch model grid =
@@ -101,35 +108,42 @@ let renderLightPath dispatch model grid =
   | Nothing -> []
   | PathDraw (entry, goal) ->
     let pathes =
-      List.map (fun (p1, p2) -> renderLine [] p1 p2 White <| gridOffset grid) model.pathes
+      match model.pathes with
+      | current, pathes ->
+        let _, p2 = pathes.Head
+        let path : Path = p2, current
+        List.map (fun (p1, p2) -> renderLine [] p1 p2 grid) <| path::pathes
     pathes
-    |? [ renderEntry [ "fill" => color2str White
-                       on.click (fun _ ->
+    |? [ renderEntry [ on.click (fun _ ->
                                   match goal with
                                     | _ -> dispatch (Mode Nothing)) ]
-                     entry <| gridOffset grid ]
-
+                     entry grid ]
 
 let view model dispatch =
   let grid = model.grid
-  let render = (grid |> renderGrid)
-                |? (grid |> renderElements dispatch model)
-                |? (grid |> renderLightPath dispatch model)
-  div [ ]
-    [ div [] [ text <| "pixelWidth: " + string grid.pixelWidth ]
-      div [] [ text <| "pixelHeight: " + string grid.pixelHeight ]
-      div [] [ text <| "gridWidth: " + string grid.gridWidth
+  let render =  [ group [ "transform" => "translate(" + string (float grid.Step / 2.) + ","
+                                                      + string (float grid.Step / 2.) + ")" ]
+                        [ group [ "stroke" => color2str Black
+                                  "fill" => color2str Black ] (grid |> renderGrid) 
+                          group [] (grid |> renderElements dispatch model) 
+                          group [ "stroke" => color2str White
+                                  "fill" => color2str White ]
+                                (grid |> renderLightPath dispatch model) ] ]
+  div []
+    [ div [] [ text <| "gridWidth: " + string grid.gridWidth
                button [ on.click (fun _ -> dispatch (Inclease GridWidth)) ] [ text "+" ]
                button [ on.click (fun _ -> dispatch (Declease GridWidth)) ] [ text "-" ] ]
       div [] [ text <| "gridHeight: " + string grid.gridHeight
                button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
                button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
-      div [] [ text <| "current postion: " + string model.currentPositon ]
-      div [] 
-        [svg [ "width" => grid.pixelWidth
-               "height" => grid.pixelHeight
+      div [] [ text <| "current position: " + string model.currentPosition ]
+      div [] [ text <| "base position: " + string model.basePosition ]
+      div [ "class" => "puzzle" ]
+        [svg [ "class" => "puzzle-body"
+               "width" => grid.Width
+               "height" => grid.Height
                "version" => "1.1" 
-               on.mousemove (fun e -> dispatch (Position { row=e.ClientY; column=e.ClientX })) ]
+               on.mousemove (fun e -> dispatch (Position { row=e.ClientY ; column=e.ClientX })) ]
              render ] ]
 
 type MyApp() =

@@ -2,39 +2,26 @@ html, body {
   height: 100%;
 }
 
+* {
+  
+}
+
 body {
-  display: flex;
-  flex-direction: column;
 }
 
 #main {
-  flex: 1;
+ 
 }
 
-#main > .columns {
-  min-height: 100%;
+.puzzle {
+  width: 500px;
+  height: 500px;
+  background-color: #5d6c7e;
+  display: flex;
+  justify-content: center;
+  align-items: center; 
 }
 
-.sidebar {
-  width: 250px;
-  background: whitesmoke;
-  min-height: 100%;
-}
-
-#counter {
-  width: 80px;
-}
-
-#notification-area {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-}
-
-#notification-area > div {
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  margin-bottom: 5px;
+.puzzle-body {
+  
 }

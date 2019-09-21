@@ -96,3 +96,6 @@ let line attrs x1 y1 x2 y2 =
                   "x2" => x2
                   "y2" => y2 ] attrs
   elt "line" attrs []
+
+let group attr nodes =
+  elt "g" attr nodes
