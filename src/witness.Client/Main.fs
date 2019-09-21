@@ -36,7 +36,6 @@ let initModel =
     elements = [ Entry {row=0.0; column=0.0}
                  Goal {row=0.0; column=3.0} ] }
 
-
 /// ---- ---- message ---- ----
 
 type GridWH =
@@ -51,7 +50,7 @@ type Message =
 
 /// ---- ---- update ---- ----
 
-let updateElementPosition model f wh =
+let updateElementPosition f wh model =
   let elements = model.elements
   let endX, endY = model.grid.gridWidth - 1, model.grid.gridHeight - 1
   let f = (fun x -> match x, wh with
@@ -69,16 +68,16 @@ let updateElementPosition model f wh =
 let update message model =
   match message with
   | Inclease GridWidth ->
-    let model = updateElementPosition model (fun x -> x + 1.0) GridWidth
+    let model = updateElementPosition (fun x -> x + 1.0) GridWidth model
     { model with grid = { model.grid with gridWidth = model.grid.gridWidth + 1 } }
   | Inclease GridHeight ->
-    let model = updateElementPosition model (fun x -> x + 1.0) GridHeight
+    let model = updateElementPosition (fun x -> x + 1.0) GridHeight model
     { model with grid = { model.grid with gridHeight = model.grid.gridHeight + 1 } }
   | Declease GridWidth ->
-    let model = updateElementPosition model (fun x -> x - 1.0) GridWidth
+    let model = updateElementPosition (fun x -> x - 1.0) GridWidth model
     { model with grid = { model.grid with gridWidth = model.grid.gridWidth - 1 } }
   | Declease GridHeight ->
-    let model = updateElementPosition model (fun x -> x - 1.0) GridHeight
+    let model = updateElementPosition (fun x -> x - 1.0) GridHeight model
     { model with grid = { model.grid with gridHeight = model.grid.gridHeight - 1 } }
   | Mode (PathDraw(p, po)) ->
     { model with basePosition = Some model.currentPosition; mode = PathDraw(p, po) }
