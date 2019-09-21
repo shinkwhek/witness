@@ -4,8 +4,8 @@ type Grid =
   {
     pixelWidth : float
     pixelHeight : float
-    width : int
-    height : int }
+    gridWidth : int
+    gridHeight : int }
   
 type Point =
   { row : float

@@ -6,12 +6,12 @@ open Svg
 open Pazzle
 
 let gridOffset grid =
-  { grid with width = grid.width + 1
-              height = grid.height + 1 }
+  { grid with gridWidth = grid.gridWidth + 1
+              gridHeight = grid.gridHeight + 1 }
 
 let inline localPosition p grid =
-  let (stepX, stepY) = (grid.pixelWidth / float grid.width, 
-                        grid.pixelHeight / float grid.height)
+  let (stepX, stepY) = (grid.pixelWidth / float grid.gridWidth, 
+                        grid.pixelHeight / float grid.gridHeight)
   let step = min stepX stepY
   let x = step * (p.column + 1.0)
   let y = step * (p.row + 1.0)
@@ -30,8 +30,8 @@ let renderLine attr (p1: Point) (p2: Point) (color: Color) (grid: Grid) =
 /// ---- ---- render grid ---- ----
 
 let renderGrid grid =
-  let startX, endX = 0, grid.width - 1
-  let startY, endY = 0, grid.height - 1
+  let startX, endX = 0, grid.gridWidth - 1
+  let startY, endY = 0, grid.gridHeight - 1
   seq {
     yield rect [ "fill" => color2str BackGround
                  "rx" => 10

@@ -13,11 +13,13 @@ let inline (|?) x y = List.append x y
 
 type Mode =
   | Nothing
-  | PathDraw of entrypoint: Point
+  | PathDraw of entrypoint: Point * 
+                goal: Point option
 
 type Model =
   { grid : Grid
     mode : Mode
+    currentPositon : Point
     pathes : Path list
     elements : Element list }
 
@@ -25,10 +27,13 @@ let initModel =
   { grid =
       { pixelWidth = 500.
         pixelHeight = 500.
-        width = 5
-        height = 5 }
+        gridWidth = 5
+        gridHeight = 5 }
     mode = Nothing
-    pathes = []
+    currentPositon = { row=0.0; column=0.0 }
+    pathes = [ ({row=0.0; column=0.0}, {row=0.0; column=1.0})
+               ({row=0.0; column=1.0}, {row=1.0; column=1.0})
+               ({row=1.0; column=1.0}, {row=1.0; column=2.0}) ]
     elements = [ Entry {row=0.0; column=0.0}
                  Goal {row=0.0; column=4.0} ] }
 
@@ -42,53 +47,65 @@ type Message =
   | Inclease of IncDec
   | Declease of IncDec
   | Mode of Mode
+  | Position of Point
 
 let update message model =
   match message with
-  | Inclease Width -> { model with grid = { model.grid with width = model.grid.width + 1 } }
-  | Inclease Height -> { model with grid = { model.grid with height = model.grid.height + 1 } }
-  | Declease Width -> { model with grid = { model.grid with width = model.grid.width - 1 } }
-  | Declease Height -> { model with grid = { model.grid with height = model.grid.height - 1 } }
+  | Inclease Width -> { model with grid = { model.grid with gridWidth = model.grid.gridWidth + 1 } }
+  | Inclease Height -> { model with grid = { model.grid with gridHeight = model.grid.gridHeight + 1 } }
+  | Declease Width -> { model with grid = { model.grid with gridWidth = model.grid.gridWidth - 1 } }
+  | Declease Height -> { model with grid = { model.grid with gridHeight = model.grid.gridHeight - 1 } }
   | Mode m -> { model with mode = m }
+  | Position p -> { model with currentPositon = p }
 
 /// ---- ---- view ---- ----
 
-let renderElements dispatch elements grid =
+let renderElements dispatch model grid =
   seq {
-    for element in elements do
+    for element in model.elements do
       match element with
       | Entry p ->
-        yield renderEntry [ on.click (fun _ -> dispatch (Mode (PathDraw p))) ] p <| gridOffset grid
+        yield renderEntry [ on.click
+                              (fun _ -> dispatch (Mode (PathDraw (p, None))))]
+                          p <| gridOffset grid
       | Goal p ->
         yield renderGoal p <| gridOffset grid
   } |> Seq.toList
 
-let renderUserPath dispatch mode grid =
-  match mode with
+let renderUserPath dispatch model grid =
+  match model.mode with
   | Nothing -> []
-  | PathDraw p ->
-    [ renderEntry [ "fill" => color2str White ] p <| gridOffset grid ]
+  | PathDraw (entry, goal) ->
+    let pathes =
+      List.map (fun (p1, p2) -> renderLine [] p1 p2 White <| gridOffset grid) model.pathes
+    pathes
+    |? [ renderEntry [ "fill" => color2str White
+                       on.click (fun _ ->
+                                  match goal with
+                                    | _ -> dispatch (Mode Nothing)) ]
+                     entry <| gridOffset grid ]
+
 
 let view model dispatch =
-  let mode = model.mode
   let grid = model.grid
-  let elements = model.elements
   let render = (grid |> renderGrid)
-                |? (grid |> renderElements dispatch elements)
-                |? (grid |> renderUserPath dispatch mode)
-  div []
+                |? (grid |> renderElements dispatch model)
+                |? (grid |> renderUserPath dispatch model)
+  div [ ]
     [ div [] [ text <| "pixelWidth: " + string grid.pixelWidth ]
       div [] [ text <| "pixelHeight: " + string grid.pixelHeight ]
-      div [] [ p [] [ text <| "width: " + string grid.width ]
+      div [] [ text <| "width: " + string grid.gridWidth
                button [ on.click (fun _ -> dispatch (Inclease Width)) ] [ text "+" ]
                button [ on.click (fun _ -> dispatch (Declease Width)) ] [ text "-" ] ]
-      div [] [ p [] [text <| "height: " + string grid.height ]
+      div [] [ text <| "height: " + string grid.gridHeight
                button [ on.click (fun _ -> dispatch (Inclease Height)) ] [ text "+" ]
                button [ on.click (fun _ -> dispatch (Declease Height)) ] [ text "-" ] ]
+      div [] [ text <| "current postion: " + string model.currentPositon ]
       div [] 
         [svg [ "width" => grid.pixelWidth
                "height" => grid.pixelHeight
-               "version" => "1.1" ]
+               "version" => "1.1" 
+               on.mousemove (fun e -> dispatch (Position { row=e.ClientY; column=e.ClientX })) ]
              render ] ]
 
 type MyApp() =
