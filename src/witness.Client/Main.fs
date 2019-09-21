@@ -72,7 +72,7 @@ let renderElements dispatch model grid =
         yield renderGoal p <| gridOffset grid
   } |> Seq.toList
 
-let renderUserPath dispatch model grid =
+let renderLightPath dispatch model grid =
   match model.mode with
   | Nothing -> []
   | PathDraw (entry, goal) ->
@@ -90,7 +90,7 @@ let view model dispatch =
   let grid = model.grid
   let render = (grid |> renderGrid)
                 |? (grid |> renderElements dispatch model)
-                |? (grid |> renderUserPath dispatch model)
+                |? (grid |> renderLightPath dispatch model)
   div [ ]
     [ div [] [ text <| "pixelWidth: " + string grid.pixelWidth ]
       div [] [ text <| "pixelHeight: " + string grid.pixelHeight ]
