@@ -15,11 +15,12 @@ type Mode =
   | Nothing
   | PathDraw of entrypoint: Point * goal: Point option
 
+type Position =
+  { currentp : Point }
+
 type Model =
   { grid : Grid
     mode : Mode
-    basePosition : Point option
-    currentPosition : Point
     pathes : Point * Path list
     elements : Element list }
 
@@ -28,8 +29,6 @@ let initModel =
       { gridWidth = 4
         gridHeight = 4 }
     mode = Nothing
-    basePosition = None
-    currentPosition = { row=0.0; column=0.0 }
     pathes = {row=1.0; column=2.5},
              [ ({row=0.0; column=1.0}, {row=1.0; column=1.0})
                ({row=0.0; column=0.0}, {row=0.0; column=1.0}) ]
@@ -46,7 +45,6 @@ type Message =
   | Inclease of GridWH
   | Declease of GridWH
   | Mode of Mode
-  | Position of Point
 
 /// ---- ---- update ---- ----
 
@@ -65,6 +63,10 @@ let updateElementPosition f wh model =
                       | e, _ -> e )
   { model with elements = List.map f elements }
 
+let updateLightPath p model =
+  let path, pathes = model.pathes
+  { model with pathes = path, pathes }
+
 let update message model =
   match message with
   | Inclease GridWidth ->
@@ -80,11 +82,10 @@ let update message model =
     let model = updateElementPosition (fun x -> x - 1.0) GridHeight model
     { model with grid = { model.grid with gridHeight = model.grid.gridHeight - 1 } }
   | Mode (PathDraw(p, po)) ->
-    { model with basePosition = Some model.currentPosition; mode = PathDraw(p, po) }
+    { model with mode = PathDraw(p, po) }
   | Mode Nothing ->
-    { model with basePosition = None; mode = Nothing }
-  | Position p -> { model with currentPosition = p }
-
+    { model with mode = Nothing }
+ 
 /// ---- ---- view ---- ----
 
 let renderElements dispatch model grid =
@@ -135,14 +136,11 @@ let view model dispatch =
       div [] [ text <| "gridHeight: " + string grid.gridHeight
                button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
                button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
-      div [] [ text <| "current position: " + string model.currentPosition ]
-      div [] [ text <| "base position: " + string model.basePosition ]
       div [ "class" => "puzzle" ]
         [svg [ "class" => "puzzle-body"
                "width" => grid.Width
                "height" => grid.Height
-               "version" => "1.1" 
-               on.mousemove (fun e -> dispatch (Position { row=e.ClientY ; column=e.ClientX })) ]
+               "version" => "1.1" ]
              render ] ]
 
 type MyApp() =

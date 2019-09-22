@@ -15,9 +15,7 @@ type Grid =
 
 type Point =
   { row : float
-    column : float }
-  static member (-) (a,b) =
-    { row = a.row - b.row; column = a.column - b.column }
+    column : float }  
 
 type Path = Point * Point
 

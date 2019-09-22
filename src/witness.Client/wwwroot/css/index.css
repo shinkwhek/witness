@@ -2,16 +2,6 @@ html, body {
   height: 100%;
 }
 
-* {
-  
-}
-
-body {
-}
-
-#main {
- 
-}
 
 .puzzle {
   width: 500px;
@@ -20,8 +10,4 @@ body {
   display: flex;
   justify-content: center;
   align-items: center; 
-}
-
-.puzzle-body {
-  
 }

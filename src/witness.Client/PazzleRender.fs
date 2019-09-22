@@ -5,6 +5,7 @@ open Bolero.Html
 open Svg
 open Pazzle
 
+
 let inline localPosition p (grid: Grid) =
   let step = grid.Step
   let x = step * (p.column)
