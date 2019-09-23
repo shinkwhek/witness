@@ -28,7 +28,7 @@ let inline renderGrid grid =
   seq {
     for i in [0..endX] do
       let i = float i
-      yield renderLine [] {row=0.0; column=i} {row=float endY; column=i}  grid
+      yield renderLine [] {row=0.0; column=i} {row=float endY; column=i} grid
     for j in [0..endY] do
       let j = float j
       yield renderLine [] {row=j; column=0.0} {row=j; column=float endX} grid
@@ -41,5 +41,5 @@ let renderEntry attr p grid =
   let r = step * 0.25
   circle attr x y r
 
-let renderGoal attr p grid =
-  renderLine attr p { p with column = p.column + 0.3 } grid
+let renderGoal attr (p,t) grid =
+  renderLine attr p t grid

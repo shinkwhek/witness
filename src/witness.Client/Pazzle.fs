@@ -21,14 +21,16 @@ type Point =
   static member inline Zero = { row=0.; column=0. }
   static member inline (+) (a: Point, b: Point) =
     { row=a.row + b.row; column=a.column + b.column }
+  static member inline (-) (a: Point, b:Point) =
+    { row=a.row - b.row; column=a.column - b.column }
 
 type Path =
   { head : Point
-    tail : Point }
+    tail : Point }    
 
 type Element =
   | Entry of pos: Point
-  | Goal of pos: Point
+  | Goal of head: Point * tail: Point
 
 type Color =
   | Black
