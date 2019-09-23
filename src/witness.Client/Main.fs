@@ -1,5 +1,6 @@
 module witness.Client.Main
 
+open System
 open Elmish
 open Bolero
 open Bolero.Html
@@ -9,7 +10,7 @@ open PazzleRender
 
 let inline (|?) x y = List.append x y
 
-/// ---- ---- model ---- ----
+/// ==== ==== model ==== ====
 
 type Mode =
   | Nothing
@@ -54,7 +55,7 @@ let initModel =
     elements = [ Entry {row=0.0; column=0.0}
                  Goal {row=0.0; column=3.0} ] }
 
-/// ---- ---- message ---- ----
+/// ==== ==== message ==== ====
 
 type GridWH =
   | GridWidth
@@ -66,7 +67,7 @@ type Message =
   | Mode of Mode
   | GetPosition of Position
 
-/// ---- ---- update ---- ----
+/// ==== ==== update ==== ====
 
 let inline updateElementPosition f wh model =
   let elements = model.elements
@@ -85,50 +86,91 @@ let inline updateElementPosition f wh model =
 
 let inline updateLightPath model =
   let positions = model.positions
+  let grid = model.grid
   match model.mode with
-   | Nothing -> model
-    | PathDraw(entry, goal) ->
+   | PathDraw(entry, goal) ->
       match model.pathes with
-      | _, [] -> 
-        let newpath = positions.Diff.SwitchDirection.ToGridPoint model.grid.Step
-        let newpath = entry + newpath
-        { model with pathes = newpath, [] }
-      | _, path::otherpath ->
-        let newpath = positions.Diff.SwitchDirection.ToGridPoint model.grid.Step
-        let newpath = path.tail + newpath
-        { model with pathes = newpath, path::otherpath }
+        | _, [] -> 
+          let newpath = positions.Diff.SwitchDirection.ToGridPoint grid.Step
+          let newpath = entry + newpath
+          { model with pathes = newpath, [] }
+        | _, path::otherpath ->
+          let newpath = positions.Diff.SwitchDirection.ToGridPoint grid.Step
+          let newpath = path.tail + newpath
+          { model with pathes = newpath, path::otherpath }
+    | _ -> model
 
 let inline updateBasePosition model =
-  { model with positions = { model.positions with basep = model.positions.currentp } }
+  let positions = { model.positions with basep = model.positions.currentp }
+  { model with positions = positions }
+
+let inline updateLightPathSnake model =
+  let positions = model.positions
+  let grid = model.grid
+  match model.mode with
+    | PathDraw(entry, goal) ->
+      let inline getHeadPathTail s =
+        match s with
+          | [] -> entry
+          | s -> s.Head.tail
+      let newpath = match positions.Diff.ToGridPoint grid.Step with
+                      | {row=_; column=x} when abs x > 0.95 ->
+                        let x = Math.Round (x, 0)
+                        let current, pathes = model.pathes
+                        let oht = getHeadPathTail pathes
+                        let current = { current with column= x + oht.column }
+                        Some { head=oht; tail=current }
+                      | {row=y; column=_} when abs y > 0.95 ->
+                        let y = Math.Round (y, 0)
+                        let current, pathes = model.pathes
+                        let oht = getHeadPathTail pathes
+                        let current = { current with row= y + oht.row }
+                        Some { head=oht; tail=current }
+                      | _ -> None
+      match newpath with
+        | Some p ->
+          let current, pathes = model.pathes
+          let pathes = current, p::pathes
+          let model = updateBasePosition model
+          { model with pathes = pathes }
+        | None -> model
+    | _ -> model
+
 
 let update message model =
   match message with
   /// --- edit grid ---
   | Inclease GridWidth ->
     let model = updateElementPosition (fun x -> x + 1.0) GridWidth model
-    { model with grid = { model.grid with gridWidth = model.grid.gridWidth + 1 } }
+    let grid = { model.grid with gridWidth = model.grid.gridWidth + 1 }
+    { model with grid = grid }
   | Inclease GridHeight ->
     let model = updateElementPosition (fun x -> x + 1.0) GridHeight model
-    { model with grid = { model.grid with gridHeight = model.grid.gridHeight + 1 } }
+    let grid = { model.grid with gridHeight = model.grid.gridHeight + 1 }
+    { model with grid = grid }
   | Declease GridWidth ->
     let model = updateElementPosition (fun x -> x - 1.0) GridWidth model
-    { model with grid = { model.grid with gridWidth = model.grid.gridWidth - 1 } }
+    let grid = { model.grid with gridWidth = model.grid.gridWidth - 1 }
+    { model with grid = grid }
   | Declease GridHeight ->
     let model = updateElementPosition (fun x -> x - 1.0) GridHeight model
-    { model with grid = { model.grid with gridHeight = model.grid.gridHeight - 1 } }
-  /// --- mode ---
+    let grid = { model.grid with gridHeight = model.grid.gridHeight - 1 }
+    { model with grid = grid }
+  /// --- mode switch ---
   | Mode (PathDraw(entry, goal)) ->
     let model = updateBasePosition model
     { model with mode = PathDraw(entry, goal) }
   | Mode Nothing ->
-    { model with mode = Nothing }
+    { model with mode = Nothing; pathes = Point.Zero, [] }
   /// ---- mouse action ----
   | GetPosition p ->
     let model = { model with positions = { model.positions with currentp = p } }
-    let model = updateLightPath model
     model
+    |> updateLightPath
+    |> updateLightPathSnake
+    
  
-/// ---- ---- view ---- ----
+/// ==== ==== view ==== ====
 
 let renderElements dispatch model grid =
   seq {
@@ -166,8 +208,9 @@ let renderLightPath dispatch model grid =
 let view model dispatch =
   let grid = model.grid
   let positions = model.positions
-  let render =  [ group [ "transform" => "translate(" + string (float grid.Step / 2.) + ","
-                                                      + string (float grid.Step / 2.) + ")" ]
+  let render =  [ group [ "transform" => "translate(" 
+                                         + string (float grid.Step / 2.) + ","
+                                         + string (float grid.Step / 2.) + ")" ]
                         [ group [ "stroke" => color2str Black
                                   "fill" => color2str Black ]
                                 (grid |> renderGrid) 
@@ -184,7 +227,7 @@ let view model dispatch =
                button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
       div [] [ text <| "current pos: " + string positions.currentp ]
       div [] [ text <| "base pos: " + string positions.basep ]
-      div [] [ text <| "diff pos: " + string positions.Diff ]
+      div [] [ text <| "diff point: " + string ( positions.Diff.ToGridPoint grid.Step ) ]
       div [] [ text <| "pathes: " + string model.pathes ]
       div [ "class" => "puzzle" ]
         [svg [ "class" => "puzzle-body"
