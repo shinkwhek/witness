@@ -22,24 +22,24 @@ let renderLine attr (p1: Point) (p2: Point) (grid: Grid) =
 
 /// ---- ---- render grid ---- ----
 
-let renderGrid grid =
-  let startX, endX = 0, grid.gridWidth - 1
-  let startY, endY = 0, grid.gridHeight - 1
+let inline renderGrid grid =
+  let endX = grid.gridWidth - 1
+  let endY = grid.gridHeight - 1
   seq {
-    for i in [startX..endX] do
+    for i in [0..endX] do
       let i = float i
       yield renderLine [] {row=0.0; column=i} {row=float endY; column=i}  grid
-    for j in [startY..endY] do
+    for j in [0..endY] do
       let j = float j
       yield renderLine [] {row=j; column=0.0} {row=j; column=float endX} grid
   } |> Seq.toList
 
 /// ---- ---- render elements ---- ----
 
-let inline renderEntry attr p grid =
+let renderEntry attr p grid =
   let x, y, step = localPosition p grid
   let r = step * 0.25
   circle attr x y r
 
-let inline renderGoal attr p grid =
+let renderGoal attr p grid =
   renderLine attr p { p with column = p.column + 0.3 } grid

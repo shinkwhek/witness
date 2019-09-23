@@ -12,12 +12,19 @@ type Grid =
   member inline x.Height =
     let a = (float x.gridHeight) * x.Step
     (string a)
+  member inline x.Offset =
+    { gridWidth=x.gridWidth - 1; gridHeight=x.gridHeight - 1 }
 
 type Point =
   { row : float
-    column : float }  
+    column : float } 
+  static member inline Zero = { row=0.; column=0. }
+  static member inline (+) (a: Point, b: Point) =
+    { row=a.row + b.row; column=a.column + b.column }
 
-type Path = Point * Point
+type Path =
+  { head : Point
+    tail : Point }
 
 type Element =
   | Entry of pos: Point

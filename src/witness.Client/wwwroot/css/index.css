@@ -1,11 +1,12 @@
 html, body {
+  width: 100%;
   height: 100%;
 }
 
 
 .puzzle {
-  width: 500px;
-  height: 500px;
+  width: 90%;
+  height: 90%;
   background-color: #5d6c7e;
   display: flex;
   justify-content: center;
