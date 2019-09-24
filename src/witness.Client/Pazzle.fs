@@ -1,5 +1,7 @@
 module Pazzle
 
+open System
+
 type Grid =
   { gridWidth : int
     gridHeight : int }
@@ -19,10 +21,21 @@ type Point =
   { row : float
     column : float } 
   static member inline Zero = { row=0.; column=0. }
+  member inline x.Norm = sqrt (x.row**2. + x.column**2.)
+  member inline x.Unit =
+    let norm = x.Norm
+    { row = Math.Round(x.row / norm,0)
+      column = Math.Round(x.column / norm,0) }
   static member inline (+) (a: Point, b: Point) =
     { row=a.row + b.row; column=a.column + b.column }
   static member inline (-) (a: Point, b:Point) =
     { row=a.row - b.row; column=a.column - b.column }
+  static member inline (*) (a: float, b:Point) =
+    { row= a*b.row ; column = a*b.column }
+  member inline x.SwitchDirection =
+    if abs x.row > abs x.column 
+    then { x with column = 0. }
+    else { x with row = 0. }
 
 type Path =
   { head : Point
@@ -31,6 +44,17 @@ type Path =
 type Element =
   | Entry of pos: Point
   | Goal of head: Point * tail: Point
+
+type Elements = Element list
+
+let inline isOnElement p elements =
+  let inline f element =
+    match element with
+    | Goal (_,tail) ->
+      (tail.row = p.row && tail.column >= p.column) ||
+      (tail.column = p.row && tail.row >= p.column)
+    | _ -> true
+  (List.forall f elements)
 
 type Color =
   | Black

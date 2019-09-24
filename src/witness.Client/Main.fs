@@ -23,24 +23,28 @@ type Position =
   static member inline (-) (a: Position, b: Position) =
     { x = a.x - b.x; y = a.y - b.y }
   member p.SwitchDirection =
-    if abs p.x > abs p.y
-    then { x = p.x; y = 0. }
-    else { x = 0.; y = p.y }
+    match p.x, p.y with
+    | x,y when abs x > abs y->
+       { x = x; y = 0. }
+    | _,y ->
+       { x = 0.; y = y }
   member x.ToGridPoint step =
     { row= x.y / step; column= x.x / step }
 
 type Positions =
   { currentp : Position
-    basep : Position }
+    basep : Position
+    history : Position list }
   member inline x.Diff =
     x.currentp - x.basep
+     
 
 type Model =
   { grid : Grid
     mode : Mode
     positions : Positions
-    pathes : Point * Path list
-    elements : Element list }
+    pathes : Point * Path list // currentPoint * oldPathes
+    elements : Elements }
 
 let initModel =
   { grid =
@@ -48,7 +52,8 @@ let initModel =
         gridHeight = 4 }
     mode = Nothing
     positions = { currentp = Position.Zero
-                  basep = Position.Zero } 
+                  basep = Position.Zero
+                  history = [] } 
     //pathes = Point.Zero, [ {head= Point.Zero
     //                        tail= {row=0.; column=1.} } ]
     pathes = Point.Zero, []
@@ -86,101 +91,107 @@ let inline updateElementPosition f wh model =
                       | e, _ -> e )
   { model with elements = List.map f elements }
 
-let inline updateLightPath model =
-  let positions = model.positions
-  let grid = model.grid
-  let inline checkInGrid p pathes model =
-    match p with
-      | {row=y; column=x}
-        when float (grid.gridWidth - 1) >= x && x >= 0.
-          && float (grid.gridHeight - 1) >= y && y >= 0. ->
-        { model with pathes = p, pathes }
-      | {row=y; column=x}
-        when List.forall (function | Goal (_,t) ->
-                                     (t.row = y && t.column >= x)
-                                     || (t.column = x && t.row >= y)
-                                   | _ -> true)
-                         model.elements ->
-        { model with pathes = p, pathes }
-      | _ -> model
-
-  match model.mode with
-    | PathDraw(entry, goal) ->
-      match model.pathes with
-        | _, [] -> 
-          let newpath = positions.Diff.SwitchDirection.ToGridPoint grid.Step
-          let newpath = entry + newpath
-          model |> checkInGrid newpath []
-        | _, path::otherpath ->
-          let newpath = positions.Diff.SwitchDirection.ToGridPoint grid.Step
-          let newpath = path.tail + newpath
-          model |> checkInGrid newpath (path::otherpath)
-    | _ -> model
-
 let inline updateBasePosition model =
   let positions = model.positions
-  let positions = { model.positions with basep = positions.currentp }
+  let history = [positions.basep] |? positions.history
+  let positions = { positions with basep = positions.currentp; history=history }
   { model with positions = positions }
 
-let inline updateLightPathSnake model =
+let inline updateBaseBackToHistory model =
   let positions = model.positions
+  match positions.history with
+    | [] -> model
+    | h::l ->
+      let positions = { positions with basep = h; history = l }
+      { model with positions = positions }
+
+let inline updateSnake t pastPath nextPoint model =
+  let current, pathes = model.pathes
+  let {row=backY; column=backX} = pastPath.head - pastPath.tail
+  match t, pathes with
+    | {row=y; column=x}, pathes when abs x >= 1. || abs y >= 1. ->
+      let newPath = {head=pastPath.tail; tail=nextPoint}
+      { model with pathes = nextPoint, newPath::pathes }
+      |> updateBasePosition
+    | {row=y; column=x}, _::pathes when backX * x > 0. &&
+                                        0.04 > abs y ->
+      { model with pathes = current, pathes }
+      |> updateBaseBackToHistory
+    | {row=y; column=x}, _::pathes when backY * y > 0. &&
+                                        0.04 > abs x ->
+      { model with pathes = current, pathes }
+      |> updateBaseBackToHistory
+    | _ -> model
+  
+let inline updateLightPath model =
   let grid = model.grid
   match model.mode with
     | PathDraw(entry, goal) ->
-      let inline getHeadPath s =
-        match s with
-          | [] -> entry, entry
-          | s -> s.Head.head, s.Head.tail
       let current, pathes = model.pathes
-      let ohh, oht = getHeadPath pathes
-      match positions.Diff.ToGridPoint grid.Step with
-        | {column=x} when abs x >= 0.95 ->
-          let x = Math.Round (x, 0) + oht.column
-          let current = { current with column= x }
-          let pathes = current, { head=oht; tail=current }::pathes
-          let model = updateBasePosition model
-          { model with pathes = pathes }
-        | {row=y} when abs y >= 0.95 ->
-          let y = Math.Round (y, 0) + oht.row
-          let current = { current with row= y }
-          let pathes = current, { head=oht; tail=current }::pathes
-          let model = updateBasePosition model
-          { model with pathes = pathes }          
-        | _ -> model
+      let inline ignorePointOutsideGrid p =
+        let width, height = float (grid.gridWidth-1), float (grid.gridHeight-1)
+        match p with
+        | {row=y; column=x} when width >= x && x >= 0. && height >= y && y >= 0. -> p
+        | p when Pazzle.isOnElement p model.elements -> p
+        | _ -> current
+      let pastHead, pastTail = match pathes with
+                                 | [] -> entry, entry
+                                 | path::_ -> path.head, path.tail
+      let t = model.positions.Diff.ToGridPoint grid.Step
+      let directionUnit = t.SwitchDirection.Unit
+      let nextPoint = pastTail + directionUnit
+      let current = match directionUnit with
+                      | {row=0.; column=_} ->
+                        let t = abs t.column
+                        (1. - t)*pastTail + t*nextPoint
+                        |> ignorePointOutsideGrid
+                      | {row=_; column=0.} ->
+                        let t = abs t.row
+                        (1. - t)*pastTail + t*nextPoint
+                        |> ignorePointOutsideGrid
+                      | _ -> current
+      { model with pathes = current, pathes }
+      |> updateSnake t {head=pastHead; tail=pastTail} nextPoint
     | _ -> model
 
 
 let update message model =
+  let grid = model.grid
   match message with
   /// --- edit grid ---
   | Inclease GridWidth ->
     let model = updateElementPosition (fun x -> x + 1.0) GridWidth model
-    let grid = { model.grid with gridWidth = model.grid.gridWidth + 1 }
+    let grid = { grid with gridWidth = grid.gridWidth + 1 }
     { model with grid = grid }
   | Inclease GridHeight ->
     let model = updateElementPosition (fun x -> x + 1.0) GridHeight model
-    let grid = { model.grid with gridHeight = model.grid.gridHeight + 1 }
+    let grid = { grid with gridHeight = grid.gridHeight + 1 }
     { model with grid = grid }
   | Declease GridWidth ->
     let model = updateElementPosition (fun x -> x - 1.0) GridWidth model
-    let grid = { model.grid with gridWidth = model.grid.gridWidth - 1 }
+    let grid = { grid with gridWidth = grid.gridWidth - 1 }
     { model with grid = grid }
   | Declease GridHeight ->
     let model = updateElementPosition (fun x -> x - 1.0) GridHeight model
-    let grid = { model.grid with gridHeight = model.grid.gridHeight - 1 }
+    let grid = { grid with gridHeight = grid.gridHeight - 1 }
     { model with grid = grid }
   /// --- mode switch ---
   | Mode (PathDraw(entry, goal)) ->
     let model = updateBasePosition model
     { model with mode = PathDraw(entry, goal) }
   | Mode Nothing ->
-    { model with mode = Nothing; pathes = Point.Zero, [] }
+    let positions = { model.positions with basep = Position.Zero
+                                           history = [] }
+    { model with mode = Nothing
+                 pathes = Point.Zero, []
+                 positions = positions }
   /// ---- mouse action ----
   | GetPosition p ->
-    let model = { model with positions = { model.positions with currentp = p } }
+    let positions = { model.positions with currentp = p }
+    let model = { model with positions = positions }
     model
     |> updateLightPath
-    |> updateLightPathSnake
+   
     
  
 /// ==== ==== view ==== ====
@@ -194,8 +205,7 @@ let inline renderElements dispatch model grid =
                               "tabindex" => "0"
                               "stroke" => color2str Black
                               "fill" => color2str Black 
-                              on.focus
-                                (fun _ -> dispatch (Mode (PathDraw (p, None))))
+                              on.focus (fun _ -> dispatch (Mode (PathDraw (p, None))))
                               on.blur (fun _ -> dispatch (Mode Nothing)) ]
                             p  grid
         | Goal (p,t) ->
@@ -248,6 +258,7 @@ let view model dispatch =
       div [] [ text <| "current pos: " + string positions.currentp ]
       div [] [ text <| "base pos: " + string positions.basep ]
       div [] [ text <| "diff point: " + string ( positions.Diff.ToGridPoint grid.Step ) ]
+      div [] [ text <| "history: " + string positions.history ]
       div [ "class" => "puzzle"
             "style" => mouseHide model ]
         [svg [ "width" => grid.Width

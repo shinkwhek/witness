@@ -16,7 +16,7 @@ let renderLine attr (p1: Point) (p2: Point) (grid: Grid) =
   let x1, y1, step = localPosition p1 grid
   let x2, y2, _ = localPosition p2 grid
   let attr =
-    List.append [ "stroke-width" => 20
+    List.append [ "stroke-width" => step * 0.2
                   "stroke-linecap" => "round" ] attr
   line attr x1 y1 x2 y2
 
