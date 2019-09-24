@@ -22,11 +22,11 @@ type Position =
   static member inline Zero = {x=0.; y=0.}
   static member inline (-) (a: Position, b: Position) =
     { x = a.x - b.x; y = a.y - b.y }
-  member inline p.SwitchDirection =
+  member p.SwitchDirection =
     if abs p.x > abs p.y
     then { x = p.x; y = 0. }
     else { x = 0.; y = p.y }
-  member inline x.ToGridPoint step =
+  member x.ToGridPoint step =
     { row= x.y / step; column= x.x / step }
 
 type Positions =
@@ -53,7 +53,7 @@ let initModel =
     //                        tail= {row=0.; column=1.} } ]
     pathes = Point.Zero, []
     elements = [ Entry {row=0.0; column=0.0}
-                 Goal ( {row=0.0; column=3.0}, {row=0.; column=3.3} ) ] }
+                 Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} ) ] }
 
 /// ==== ==== message ==== ====
 
@@ -134,32 +134,18 @@ let inline updateLightPathSnake model =
       let current, pathes = model.pathes
       let ohh, oht = getHeadPath pathes
       match positions.Diff.ToGridPoint grid.Step with
-        | {column=x} when abs x >= 1. ->
+        | {column=x} when abs x >= 0.95 ->
           let x = Math.Round (x, 0) + oht.column
           let current = { current with column= x }
           let pathes = current, { head=oht; tail=current }::pathes
           let model = updateBasePosition model
           { model with pathes = pathes }
-        | {row=y} when abs y >= 1. ->
+        | {row=y} when abs y >= 0.95 ->
           let y = Math.Round (y, 0) + oht.row
           let current = { current with row= y }
           let pathes = current, { head=oht; tail=current }::pathes
           let model = updateBasePosition model
-          { model with pathes = pathes }
-        | p ->
-          match pathes with
-            | [] -> model
-            | {head=hp; tail=tp}::l ->
-              let a = if abs p.row > abs p.column
-                      then {row=p.row; column=0.}
-                      else {row=0.; column=p.column}
-              let d = ohh - oht
-              if a.column*d.column + a.row*d.row > 0.
-              then
-                let pathes = current, l
-                let model = updateBasePosition model
-                { model with pathes = pathes }
-              else model
+          { model with pathes = pathes }          
         | _ -> model
     | _ -> model
 
@@ -199,22 +185,25 @@ let update message model =
  
 /// ==== ==== view ==== ====
 
-let renderElements dispatch model grid =
+let inline renderElements dispatch model grid =
   seq {
     for element in model.elements do
       match element with
        | Entry p ->
-          yield renderEntry [ on.click
-                                (fun _ -> dispatch (Mode (PathDraw (p, None))))
+          yield renderEntry [ "class" => "PuzzleEntry"
+                              "tabindex" => "0"
                               "stroke" => color2str Black
-                              "fill" => color2str Black ]
+                              "fill" => color2str Black 
+                              on.focus
+                                (fun _ -> dispatch (Mode (PathDraw (p, None))))
+                              on.blur (fun _ -> dispatch (Mode Nothing)) ]
                             p  grid
         | Goal (p,t) ->
           yield renderGoal [ "stroke" => color2str Black
                              "fill" => color2str Black ] (p,t) grid
   } |> Seq.toList
 
-let renderLightPath dispatch model grid =
+let inline renderLightPath dispatch model grid =
   match model.mode with
   | Nothing -> []
   | PathDraw (entry, goal) ->
@@ -227,9 +216,7 @@ let renderLightPath dispatch model grid =
           let path : Path = { head=current; tail=p2}
           List.map (fun {head=p1; tail=p2} -> renderLine [] p1 p2 grid) <| path::pathes
     pathes
-    |? [ renderEntry [ on.click (fun _ ->
-                                  match goal with
-                                    | _ -> dispatch (Mode Nothing)) ]
+    |? [ renderEntry [ ]
                      entry grid ]
 
 let inline mouseHide model =
@@ -265,8 +252,7 @@ let view model dispatch =
             "style" => mouseHide model ]
         [svg [ "width" => grid.Width
                "height" => grid.Height
-               "version" => "1.1"
-                ]
+               "version" => "1.1" ]
              render ]
       div [] [ text <| "pathes: " + string model.pathes ] ]
 

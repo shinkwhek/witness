@@ -21,3 +21,11 @@ html, body {
   justify-content: center;
   align-items: center; 
 }
+
+.PuzzleEntry {
+  cursor: pointer;
+}
+
+.PuzzleEntry:focus {
+  outline: none;
+}
