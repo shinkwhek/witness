@@ -36,8 +36,7 @@ type Positions =
     basep : Position
     history : Position list }
   member inline x.Diff =
-    x.currentp - x.basep
-     
+    x.currentp - x.basep     
 
 type Model =
   { grid : Grid
@@ -114,11 +113,11 @@ let inline updateSnake t pastPath nextPoint model =
       { model with pathes = nextPoint, newPath::pathes }
       |> updateBasePosition
     | {row=y; column=x}, _::pathes when backX * x > 0. &&
-                                        0.04 > abs y ->
+                                        (0.3 > abs y) ->
       { model with pathes = current, pathes }
       |> updateBaseBackToHistory
     | {row=y; column=x}, _::pathes when backY * y > 0. &&
-                                        0.04 > abs x ->
+                                        0.3 > abs x ->
       { model with pathes = current, pathes }
       |> updateBaseBackToHistory
     | _ -> model
