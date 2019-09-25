@@ -13,12 +13,11 @@ $ dotnet run -p src/witness.Client
 
 # TODO
 
-- [ ] : Render
+- [x] : Render
   - [x] : Render Grid
-  - [ ] : Light Path
-  - [ ] : Rules
+  - [x] : Light Path
 
-- [ ] : Rules
+- [ ] : Rules and Judge
   - [ ] : Hexagon
   - [ ] : Square
   - [ ] : Tetris
