@@ -43,3 +43,12 @@ let renderEntry attr p grid =
 
 let renderGoal attr (p,t) grid =
   renderLine attr p t grid
+
+let renderHexagonDot attr p grid =
+  let x, y, step = localPosition p grid
+  let linewidth = step * 0.2
+  let points = [ (-0.5, 0.); (-0.25, 0.43); (0.25, 0.43);
+                 (0.5, 0.); (0.25, -0.43); (-0.25, -0.43); ]
+  let inline f (a,b) = (a*linewidth*0.9 + x, b*linewidth*0.9 + y)
+  let points = List.map f points
+  polygon attr points

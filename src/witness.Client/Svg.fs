@@ -97,5 +97,12 @@ let line attrs x1 y1 x2 y2 =
                   "y2" => y2 ] attrs
   elt "line" attrs []
 
+let polygon attrs plst =
+  let inline f (a: float, b: float) = string a + "," + string b
+  let plst = List.map f plst
+  let attrs =
+    List.append [ "points" => String.concat " " plst ] attrs
+  elt "polygon" attrs []
+
 let group attr nodes =
   elt "g" attr nodes

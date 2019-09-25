@@ -44,17 +44,26 @@ type Path =
 type Element =
   | Entry of pos: Point
   | Goal of head: Point * tail: Point
+  | HexagonDot of pos: Point
 
 type Elements = Element list
 
 let inline isOnElement p elements =
   let inline f element =
     match element with
-    | Goal (_,tail) ->
-      (tail.row = p.row && tail.column >= p.column) ||
-      (tail.column = p.row && tail.row >= p.column)
-    | _ -> true
+      | Goal (_,tail) ->
+        (tail.row = p.row && tail.column >= p.column) ||
+        (tail.column = p.row && tail.row >= p.column)
+      | _ -> true
   (List.forall f elements)
+
+let inline isOnGoal p elements =
+  let inline f element =
+    match element with
+      | Goal (_, tail) ->
+        0.1 > abs (tail.row - p.row) && 0.1 > abs (tail.column - p.column)
+      | _ -> false
+  (List.exists f elements)
 
 type Color =
   | Black
