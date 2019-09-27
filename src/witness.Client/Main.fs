@@ -8,8 +8,12 @@ open Bolero.Html.attr
 open Svg
 open Pazzle
 open PazzleRender
+open Rules
 
 let inline (|?) x y = List.append x y
+
+let styles (styles: list<string>) : Attr =
+  "style" => String.concat " " styles
 
 /// ==== ==== model ==== ====
 
@@ -40,29 +44,40 @@ type Positions =
   member inline x.Diff =
     x.currentp - x.basep     
 
+type LightPathes =
+  { entrypoint : Point option 
+    goalpath : Path option
+    current : Point
+    pathes : Path list }
+
 type Model =
   { grid : Grid
     mode : Mode
+    solved : Solved
     positions : Positions
-    pathes : Point * Path list // currentPoint * oldPathes
-    elements : Elements }
+    lightpathes : LightPathes
+    elements : Elements
+    judgedElements : JudgedElement list }
 
 let initModel =
   { grid =
       { gridWidth = 4
         gridHeight = 4 }
     mode = Nothing
+    solved = Default
     positions = { currentp = Position.Zero
                   basep = Position.Zero
                   history = [] } 
-    //pathes = Point.Zero, [ {head= Point.Zero
-    //                        tail= {row=0.; column=1.} } ]
-    pathes = Point.Zero, []
+    lightpathes = { entrypoint = None
+                    goalpath = None
+                    current = Point.Zero
+                    pathes = [] }
     elements = [ Entry {row=0.0; column=0.0}
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
                  HexagonDot {row=1.; column=0.}
                  HexagonDot {row=1.; column=1.5}
-                 HexagonDot {row=3.; column=3.} ] }
+                 HexagonDot {row=3.; column=3.} ]
+    judgedElements = [] }
 
 /// ==== ==== message ==== ====
 
@@ -97,7 +112,7 @@ let inline updateElementPosition f wh model =
 
 let inline updateBasePosition model =
   let positions = model.positions
-  let history = [positions.basep] |? positions.history
+  let history = positions.basep::positions.history
   let positions = { positions with basep = positions.currentp; history=history }
   { model with positions = positions }
 
@@ -110,20 +125,23 @@ let inline updateBaseBackToHistory model =
       { model with positions = positions }
 
 let inline updateSnake t pastPath nextPoint model =
-  let current, pathes = model.pathes
+  let {pathes=pathes} = model.lightpathes
   let {row=backY; column=backX} = pastPath.head - pastPath.tail
   match t, pathes with
     | {row=y; column=x}, pathes when abs x >= 1. || abs y >= 1. ->
       let newPath = {head=pastPath.tail; tail=nextPoint}
-      { model with pathes = nextPoint, newPath::pathes }
+      let lightpathes = { model.lightpathes with current=nextPoint; pathes=newPath::pathes }
+      { model with lightpathes = lightpathes }
       |> updateBasePosition
     | {row=y; column=x}, _::pathes when backX * x > 0. &&
                                         (0.3 > abs y) ->
-      { model with pathes = current, pathes }
+      let lightpathes = { model.lightpathes with pathes=pathes }
+      { model with lightpathes = lightpathes }
       |> updateBaseBackToHistory
     | {row=y; column=x}, _::pathes when backY * y > 0. &&
                                         0.3 > abs x ->
-      { model with pathes = current, pathes }
+      let lightpathes = { model.lightpathes with pathes=pathes }
+      { model with lightpathes = lightpathes }
       |> updateBaseBackToHistory
     | _ -> model
   
@@ -131,12 +149,12 @@ let inline updateLightPath model =
   let grid = model.grid
   match model.mode with
     | PathDraw entry ->
-      let current, pathes = model.pathes
+      let {current=current; pathes=pathes} = model.lightpathes
       let inline ignorePointOutsideGrid p =
         let width, height = float (grid.gridWidth-1), float (grid.gridHeight-1)
         match p with
         | {row=y; column=x} when width >= x && x >= 0. && height >= y && y >= 0. -> p
-        | p when Pazzle.isOnElement p model.elements -> p
+        | p when isOnElement p model.elements -> p
         | _ -> current
       let pastHead, pastTail = match pathes with
                                  | [] -> entry, entry
@@ -154,7 +172,10 @@ let inline updateLightPath model =
                         (1. - t)*pastTail + t*nextPoint
                         |> ignorePointOutsideGrid
                       | _ -> current
-      { model with pathes = current, pathes }
+      let lightpathes = { model.lightpathes with current=current
+                                                 entrypoint=Some entry
+                                                 pathes=pathes }
+      { model with lightpathes = lightpathes }
       |> updateSnake t {head=pastHead; tail=pastTail} nextPoint
     | _ -> model
 
@@ -182,13 +203,12 @@ let update message model =
   /// --- mode switch ---
   | Mode (PathDraw entry) ->
     let model = updateBasePosition model
-    { model with mode = PathDraw entry }
+    let lightpathes = { model.lightpathes with entrypoint=Some entry }
+    { model with mode = PathDraw entry
+                 solved = Default
+                 lightpathes = lightpathes }
   | Mode Nothing ->
-    let positions = { model.positions with basep = Position.Zero
-                                           history = [] }
-    { model with mode = Nothing
-                 pathes = Point.Zero, []
-                 positions = positions }
+    initModel
   /// ---- mouse action ----
   | GetPosition p ->
     let positions = { model.positions with currentp = p }
@@ -199,19 +219,29 @@ let update message model =
   | Mode Judgement ->
     let positions = { model.positions with basep = Position.Zero
                                            history = [] }
-    { model with mode = Judgement
-                 pathes = Point.Zero, []
-                 positions = positions }
+    let {current=current; pathes=pathes} = model.lightpathes
+    let judgedElements = runJudge model.elements pathes
+    let solved = if List.forall (fun {elm=_; satisfy=satisfy} -> satisfy )
+                                judgedElements
+                         then Solved else Miss
+    let lightpathes =
+      match solved, pathes with
+        | Solved, {head=_; tail=tail}::_ ->
+          let goalpath = { head=tail; tail=current }
+          { model.lightpathes with goalpath=Some goalpath }
+        | _ -> initModel.lightpathes
+    { model with mode = Nothing
+                 solved = solved
+                 lightpathes = lightpathes
+                 positions = positions
+                 judgedElements = judgedElements }
     
-    
-    
- 
 /// ==== ==== view ==== ====
 
 let inline isOnGoal model =
   match model.mode with
     | PathDraw _ ->
-      let current, pathes = model.pathes
+      let {current=current; pathes=pathes} = model.lightpathes
       if isOnGoal current model.elements
       then
         printfn "Judgement!"
@@ -221,62 +251,68 @@ let inline isOnGoal model =
     | _ -> (Mode Nothing)
 
 let inline renderElements dispatch model grid =
-  seq {
-    for element in model.elements do
-      match element with
-       | Entry p ->
-          yield renderEntry [ classes [ "PuzzleEntry" ]
-                              "tabindex" => "0"
-                              "stroke" => color2str Black
-                              "fill" => color2str Black 
-                              on.focus (fun _ -> dispatch (Mode (PathDraw p)))
-                              on.blur (fun _ -> dispatch (isOnGoal model)) ]
-                            p  grid
-        | Goal (p,t) ->
-          yield renderGoal [ "stroke" => color2str Black
-                             "fill" => color2str Black ] (p,t) grid
-        | HexagonDot p ->
-          yield renderHexagonDot [ "stroke" => "gray"
-                                   "fill" => "gray" ] p grid
-  } |> Seq.toList
+  let inline f elm =
+    match elm with
+      | Entry p ->
+          renderEntry [ classes [ "PuzzleEntry" ]
+                        "tabindex" => "1"
+                        "stroke" => color2str Black
+                        "fill" => color2str Black 
+                        on.focus (fun _ -> dispatch (Mode (PathDraw p)))
+                        on.blur (fun _ -> dispatch (isOnGoal model)) ]
+                        p grid
+      | Goal (p,t) ->
+        renderGoal [ "stroke" => color2str Black
+                     "fill" => color2str Black ] (p,t) grid
+      | HexagonDot p ->
+        renderHexagonDot [ "stroke" => "gray"
+                           "fill" => "gray" ] p grid
+  (List.map f model.elements)
 
-let inline renderLightPath dispatch model grid =
-  match model.mode with
-  | PathDraw entry ->
-    let pathes =
-      match model.pathes with
-        | current, [] ->
-          [ renderLine [] entry current grid ]
-        | current, pathes ->
-          let p2 = pathes.Head.tail
-          let path : Path = { head=current; tail=p2}
-          List.map (fun {head=p1; tail=p2} -> renderLine [] p1 p2 grid) <| path::pathes
-    pathes
-    |? [ renderEntry [ ]
-                     entry grid ]
-  | _ -> []
+let inline redboxElements model grid =
+    let inline f {elm=elm; satisfy=satisfy} =
+      match elm, satisfy with
+        | HexagonDot p, false ->
+          renderRed [ "stroke" => "#ff6347"
+                      "fill" => "#ff6347" ] p grid (grid.Step*0.2)
+        | _ -> Empty
+    match model.solved with
+      | Miss ->
+        List.map f model.judgedElements
+      | _ -> []
 
-let styles (styles: list<string>) : Attr =
-  "style" => String.concat " " styles
+let inline renderLightPath model grid =
+  match model.lightpathes with
+    | {entrypoint=Some entry; current=current; pathes=[]} ->
+      [ renderEntry [] entry grid ]
+      |? [ renderLine [] entry current grid ]
+    | {entrypoint=Some entry; current=current; pathes=pathes} ->
+      let p2 = pathes.Head.tail
+      let path : Path = { head=current; tail=p2}
+      [ renderEntry [] entry grid ]
+      |? (List.map (fun {head=p1; tail=p2} -> renderLine [] p1 p2 grid) <| path::pathes)
+    | _ -> []
 
 let inline mouseHide model =
   match model.mode with
     | PathDraw _ -> "cursor: none;"
     | _ -> ""
 
+let inline solvedGlow solved =
+  match solved with
+    | Solved -> "filter:url(#glow);"
+    | _ -> ""
+
 let view model dispatch =
   let grid = model.grid
-  let positions = model.positions
-  let render =  [ group [ "transform" => "translate(" 
-                                         + string (float grid.Step / 2.) + ","
-                                         + string (float grid.Step / 2.) + ")" ]
-                        [ group [ "stroke" => color2str Black
-                                  "fill" => color2str Black ]
-                                (grid |> renderGrid) 
-                          group [] (grid |> renderElements dispatch model) 
-                          group [ "stroke" => color2str White
-                                  "fill" => color2str White ]
-                                (grid |> renderLightPath dispatch model) ] ]
+  let defs = defs []
+                  [ filter [ "id" => "glow" ] 
+                           [ elt "feGaussianBlur" [ "stdDeviation" => 2.5
+                                                    "result" => "coloredBlur" ] []
+                             elt "feMerge" [] [
+                               elt "feMergeNode" [ "in" => "coloredBlur" ] []
+                               elt "feMergeNode" [ "in" => "SourceGraphic" ] []
+                             ] ] ]
   div [ classes [ "container1" ]
         on.mousemove (fun e -> dispatch (GetPosition {x=e.ClientX; y=e.ClientY})) ]
     [ div [] [ text <| "gridWidth: " + string grid.gridWidth
@@ -286,14 +322,27 @@ let view model dispatch =
                button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
                button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
       div [] [ text <| "Mode: " + string model.mode ]
-      div [] [ text <| "history: " + string positions.history ]
+      div [] [ text <| "Solved?: " + string model.solved ]
       div [ classes [ "puzzle" ]
             styles [ mouseHide model ] ]
-        [svg [ "width" => grid.Width
-               "height" => grid.Height
-               "version" => "1.1" ]
-             render ]
-      div [] [ text <| "pathes: " + string model.pathes ] ]
+          [ svg [ "width" => grid.Width
+                  "height" => grid.Height
+                  "xmlns" => "http://www.w3.org/2000/svg"
+                  "version" => "1.1" ]
+                ([defs]
+                |? [ group [ "transform" => "translate(" 
+                                            + string (float grid.Step / 2.) + ","
+                                            + string (float grid.Step / 2.) + ")" ]
+                           [ group [ "stroke" => color2str Black
+                                     "fill" => color2str Black ]
+                                   (grid |> renderGrid) 
+                             //group [] (grid |> redboxElements model)
+                             group [] (grid |> renderElements dispatch model) 
+                             group [ "stroke" => color2str White
+                                     "fill" => color2str White  
+                                     styles [ solvedGlow model.solved ] ]
+                                   (grid |> renderLightPath model) ] ]) ]
+      div [] [ text <| "lightpathes: " + string model.lightpathes ] ]
 
 type MyApp() =
   inherit ProgramComponent<Model, Message>()

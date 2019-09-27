@@ -104,5 +104,11 @@ let polygon attrs plst =
     List.append [ "points" => String.concat " " plst ] attrs
   elt "polygon" attrs []
 
-let group attr nodes =
+let inline group attr nodes =
   elt "g" attr nodes
+
+let inline defs attr nodes =
+  elt "defs" attr nodes
+
+let inline filter attr nodes =
+  elt "filter" attr nodes

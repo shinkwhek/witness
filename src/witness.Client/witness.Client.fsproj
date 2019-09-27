@@ -7,6 +7,7 @@
     <Compile Include="Svg.fs" />
     <Compile Include="Pazzle.fs" />
     <Compile Include="PazzleRender.fs" />
+    <Compile Include="Rules.fs" />
     <Compile Include="Main.fs" />
     <Compile Include="Startup.fs" />
   </ItemGroup>

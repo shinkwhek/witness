@@ -36,6 +36,11 @@ let inline renderGrid grid =
 
 /// ---- ---- render elements ---- ----
 
+let renderRed attr p grid step =
+  let x, y, _ = localPosition p grid
+  let x, y = x - step/2., y - step/2.
+  rect attr x y step step
+
 let renderEntry attr p grid =
   let x, y, step = localPosition p grid
   let r = step * 0.25
