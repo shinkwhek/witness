@@ -276,10 +276,12 @@ let inline redboxElements model grid =
           renderRed [ "stroke" => "#ff6347"
                       "fill" => "#ff6347" ] p grid (grid.Step*0.2)
         | _ -> Empty
-    match model.solved with
-      | Miss ->
-        List.map f model.judgedElements
-      | _ -> []
+    List.map f model.judgedElements
+
+let inline DisplayWhenMiss solved =
+  match solved with
+    | Miss -> "display" => "inline"
+    | _ -> "display" => "none"
 
 let inline renderLightPath model grid =
   match model.lightpathes with
@@ -336,7 +338,8 @@ let view model dispatch =
                            [ group [ "stroke" => color2str Black
                                      "fill" => color2str Black ]
                                    (grid |> renderGrid) 
-                             //group [] (grid |> redboxElements model)
+                             group [ DisplayWhenMiss model.solved ]
+                                   (grid |> redboxElements model)
                              group [] (grid |> renderElements dispatch model) 
                              group [ "stroke" => color2str White
                                      "fill" => color2str White  
