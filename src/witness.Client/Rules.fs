@@ -45,7 +45,7 @@ let inline judgeHexagonDot pathes jes =
         { elm=elm; satisfy=true }
       | _ ->
         { elm=elm; satisfy=satisfy }
-  List.map f jes |> JE
+  map f jes |> JE
 
 let inline judgeRules elements pathes =
   JudgedElements.Return elements

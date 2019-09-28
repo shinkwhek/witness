@@ -1,5 +1,7 @@
 module Svg
 
+open FSharpPlus
+
 open Bolero
 open Bolero.Html
 

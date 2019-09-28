@@ -10,7 +10,7 @@ open Pazzle
 open PazzleRender
 open Rules
 
-let inline (|?) x y = List.append x y
+/// ==== ==== Expand ==== ====
 
 let styles (styles: list<string>) : Attr =
   "style" => String.concat " " styles
@@ -95,16 +95,16 @@ type Message =
 
 let inline updateElementPosition f wh model =
   let elements = model.elements
-  let endX, endY = model.grid.gridWidth - 1, model.grid.gridHeight - 1
+  let endX, endY = float <| model.grid.gridWidth - 1, float <| model.grid.gridHeight - 1
   let f = (fun x -> match x, wh with
-                      | Entry p, GridWidth when p.column = float endX ->
+                      | Entry p, GridWidth when p.column = endX ->
                         Entry {row=p.row; column=f p.column} 
-                      | Entry p, GridHeight when p.row = float endY ->
+                      | Entry p, GridHeight when p.row = endY ->
                         Entry {row=f p.row; column=p.column}
-                      | Goal (p,t), GridWidth when p.column = float endX ->
+                      | Goal (p,t), GridWidth when p.column = endX ->
                         Goal ( {row=p.row; column=f p.column},
                                {row=t.row; column=f t.column} )
-                      | Goal (p,t), GridHeight when p.row = float endY ->
+                      | Goal (p,t), GridHeight when p.row = endY ->
                         Goal ( {row=f p.row; column=p.column},
                                {row=f t.row; column=t.column} )
                       | e, _ -> e )
@@ -125,24 +125,31 @@ let inline updateBaseBackToHistory model =
       { model with positions = positions }
 
 let inline updateSnake t pastPath nextPoint model =
+  let grid = model.grid
+  let maxX, maxY = float <| grid.gridWidth, float <| grid.gridHeight
   let {pathes=pathes} = model.lightpathes
   let {row=backY; column=backX} = pastPath.head - pastPath.tail
+  let isInsidegrid =
+    let x,y = nextPoint.column, nextPoint.row
+    not (x = maxX || y = maxY || x = -1. || y = -1.)
   match t, pathes with
-    | {row=y; column=x}, pathes when abs x >= 1. || abs y >= 1. ->
-      let newPath = {head=pastPath.tail; tail=nextPoint}
-      let lightpathes = { model.lightpathes with current=nextPoint; pathes=newPath::pathes }
-      { model with lightpathes = lightpathes }
-      |> updateBasePosition
-    | {row=y; column=x}, _::pathes when backX * x > 0. &&
-                                        (0.3 > abs y) ->
-      let lightpathes = { model.lightpathes with pathes=pathes }
-      { model with lightpathes = lightpathes }
-      |> updateBaseBackToHistory
-    | {row=y; column=x}, _::pathes when backY * y > 0. &&
-                                        0.3 > abs x ->
-      let lightpathes = { model.lightpathes with pathes=pathes }
-      { model with lightpathes = lightpathes }
-      |> updateBaseBackToHistory
+    | {row=y; column=x}, pathes
+      when isInsidegrid && ( abs x >= 1. || abs y >= 1. ) ->
+        let newPath = {head=pastPath.tail; tail=nextPoint}
+        let lightpathes = { model.lightpathes with current=nextPoint
+                                                   pathes=newPath::pathes }
+        { model with lightpathes = lightpathes }
+        |> updateBasePosition
+    | {row=y; column=x}, _::pathes
+      when backX * x > 0. && (0.3 > abs y) ->
+        let lightpathes = { model.lightpathes with pathes=pathes }
+        { model with lightpathes = lightpathes }
+        |> updateBaseBackToHistory
+    | {row=y; column=x}, _::pathes
+      when backY * y > 0. && 0.3 > abs x ->
+        let lightpathes = { model.lightpathes with pathes=pathes }
+        { model with lightpathes = lightpathes }
+        |> updateBaseBackToHistory
     | _ -> model
   
 let inline updateLightPath model =
@@ -151,10 +158,11 @@ let inline updateLightPath model =
     | PathDraw entry ->
       let {current=current; pathes=pathes} = model.lightpathes
       let inline ignorePointOutsideGrid p =
-        let width, height = float (grid.gridWidth-1), float (grid.gridHeight-1)
+        let width, height = float <| grid.gridWidth-1, float <| grid.gridHeight-1
         match p with
-        | {row=y; column=x} when width >= x && x >= 0. && height >= y && y >= 0. -> p
-        | p when isOnElement p model.elements -> p
+        | {row=y; column=x}
+          when (width >= x && x >= 0. && height >= y && y >= 0.) ||
+               isOnElement p model.elements -> p
         | _ -> current
       let pastHead, pastTail = match pathes with
                                  | [] -> entry, entry
@@ -260,7 +268,7 @@ let inline renderElements dispatch model grid =
                         "fill" => color2str Black 
                         on.focus (fun _ -> dispatch (Mode (PathDraw p)))
                         on.blur (fun _ -> dispatch (isOnGoal model)) ]
-                        p grid
+                      p grid
       | Goal (p,t) ->
         renderGoal [ "stroke" => color2str Black
                      "fill" => color2str Black ] (p,t) grid
@@ -283,16 +291,18 @@ let inline DisplayWhenMiss solved =
     | Miss -> "display" => "inline"
     | _ -> "display" => "none"
 
-let inline renderLightPath model grid =
-  match model.lightpathes with
+let inline renderLightPath lightpathes grid =
+  match lightpathes with
     | {entrypoint=Some entry; current=current; pathes=[]} ->
-      [ renderEntry [] entry grid ]
-      |? [ renderLine [] entry current grid ]
+      List.append
+        [ renderEntry [] entry grid ]
+        [ renderLine [] entry current grid ]
     | {entrypoint=Some entry; current=current; pathes=pathes} ->
       let p2 = pathes.Head.tail
       let path : Path = { head=current; tail=p2}
-      [ renderEntry [] entry grid ]
-      |? (List.map (fun {head=p1; tail=p2} -> renderLine [] p1 p2 grid) <| path::pathes)
+      List.append
+        [ renderEntry [] entry grid ]
+        (List.map (fun {head=p1; tail=p2} -> renderLine [] p1 p2 grid) <| path::pathes)
     | _ -> []
 
 let inline mouseHide model =
@@ -316,36 +326,37 @@ let view model dispatch =
                                elt "feMergeNode" [ "in" => "SourceGraphic" ] []
                              ] ] ]
   div [ classes [ "container1" ]
-        on.mousemove (fun e -> dispatch (GetPosition {x=e.ClientX; y=e.ClientY})) ]
-    [ div [] [ text <| "gridWidth: " + string grid.gridWidth
-               button [ on.click (fun _ -> dispatch (Inclease GridWidth)) ] [ text "+" ]
-               button [ on.click (fun _ -> dispatch (Declease GridWidth)) ] [ text "-" ] ]
-      div [] [ text <| "gridHeight: " + string grid.gridHeight
-               button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
-               button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
-      div [] [ text <| "Mode: " + string model.mode ]
-      div [] [ text <| "Solved?: " + string model.solved ]
-      div [ classes [ "puzzle" ]
-            styles [ mouseHide model ] ]
-          [ svg [ "width" => grid.Width
-                  "height" => grid.Height
-                  "xmlns" => "http://www.w3.org/2000/svg"
-                  "version" => "1.1" ]
-                ([defs]
-                |? [ group [ "transform" => "translate(" 
-                                            + string (float grid.Step / 2.) + ","
-                                            + string (float grid.Step / 2.) + ")" ]
-                           [ group [ "stroke" => color2str Black
-                                     "fill" => color2str Black ]
-                                   (grid |> renderGrid) 
-                             group [ DisplayWhenMiss model.solved ]
-                                   (grid |> redboxElements model)
-                             group [] (grid |> renderElements dispatch model) 
-                             group [ "stroke" => color2str White
-                                     "fill" => color2str White  
-                                     styles [ solvedGlow model.solved ] ]
-                                   (grid |> renderLightPath model) ] ]) ]
-      div [] [ text <| "lightpathes: " + string model.lightpathes ] ]
+        on.mousemove (fun e -> dispatch (GetPosition {x=e.ClientX; y=e.ClientY}))
+        styles [ mouseHide model ] ]
+      [ div [] [ text <| "gridWidth: " + string grid.gridWidth
+                 button [ on.click (fun _ -> dispatch (Inclease GridWidth)) ] [ text "+" ]
+                 button [ on.click (fun _ -> dispatch (Declease GridWidth)) ] [ text "-" ] ]
+        div [] [ text <| "gridHeight: " + string grid.gridHeight
+                 button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
+                 button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
+        div [] [ text <| "Mode: " + string model.mode ]
+        div [] [ text <| "Solved?: " + string model.solved ]
+        div [ classes [ "puzzle" ] ]
+            [ svg [ "width" => grid.Width
+                    "height" => grid.Height
+                    "xmlns" => "http://www.w3.org/2000/svg"
+                    "version" => "1.1" ]
+                  <| List.append
+                    [defs]
+                    [ group [ "transform" => "translate(" 
+                                             + string (float grid.Step / 2.) + ","
+                                             + string (float grid.Step / 2.) + ")" ]
+                            [ group [ "stroke" => color2str Black
+                                      "fill" => color2str Black ]
+                                    (grid |> renderGrid) 
+                              group [ DisplayWhenMiss model.solved ]
+                                    (grid |> redboxElements model)
+                              group [] (grid |> renderElements dispatch model) 
+                              group [ "stroke" => color2str White
+                                      "fill" => color2str White  
+                                      styles [ solvedGlow model.solved ] ]
+                                    (grid |> renderLightPath model.lightpathes) ] ] ]
+        div [] [ text <| "lightpathes: " + string model.lightpathes ] ]
 
 type MyApp() =
   inherit ProgramComponent<Model, Message>()

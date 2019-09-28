@@ -16,9 +16,10 @@ $ dotnet run -p src/witness.Client
 - [x] : Render
   - [x] : Render Grid
   - [x] : Light Path
+  - [x] : Result Effect
 
 - [ ] : Rules and Judge
-  - [ ] : Hexagon
+  - [x] : Hexagon
   - [ ] : Square
   - [ ] : Tetris
   - [ ] : Hollow

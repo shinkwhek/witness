@@ -12,10 +12,11 @@
     <Compile Include="Startup.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Bolero" Version="0.8.10-preview*" />
-    <PackageReference Include="Bolero.Build" Version="0.8.10-preview*" />
+    <PackageReference Include="Bolero" Version="0.9.3-preview*" />
+    <PackageReference Include="Bolero.Build" Version="0.9.3-preview*" />
+    <PackageReference Include="Bolero.HotReload" Version="0.9.3-preview*" />
     <PackageReference Include="FSharpPlus" Version="1.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Blazor.Build" Version="3.0-preview8.*" />
-    <PackageReference Include="Microsoft.AspNetCore.Blazor.DevServer" Version="3.0-preview8.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.Build" Version="3.0-preview9.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Blazor.DevServer" Version="3.0-preview9.*" />
   </ItemGroup>
 </Project>

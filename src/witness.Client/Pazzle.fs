@@ -48,12 +48,12 @@ type Element =
 
 type Elements = Element list
 
-let inline isOnElement p elements =
+let inline isOnElement {row=y; column=x} elements =
   let inline f element =
     match element with
-      | Goal (_,tail) ->
-        (tail.row = p.row && tail.column >= p.column) ||
-        (tail.column = p.row && tail.row >= p.column)
+      | Goal (_, {row=ty; column=tx}) ->
+        (ty = y && tx >= x && x >= 0.) ||
+        (tx = x && ty >= y && y >= 0.)
       | _ -> true
   (List.forall f elements)
 
@@ -78,3 +78,4 @@ type Color =
 
 let inline color2str (x: ^X) =
   (^X: (member ToStr : string) x)
+  

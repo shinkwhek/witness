@@ -57,3 +57,4 @@ let renderHexagonDot attr p grid =
   let inline f (a,b) = (a*linewidth*0.9 + x, b*linewidth*0.9 + y)
   let points = List.map f points
   polygon attr points
+  
