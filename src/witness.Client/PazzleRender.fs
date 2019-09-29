@@ -57,4 +57,11 @@ let renderHexagonDot attr p grid =
   let inline f (a,b) = (a*linewidth*0.9 + x, b*linewidth*0.9 + y)
   let points = List.map f points
   polygon attr points
-  
+
+let renderSquare attr p grid =
+  let x, y, step = localPosition p grid
+  let width = step * 1.2 / 3.
+  let x, y = x - width/2., y - width/2.
+  let attr = [ "rx" => string 10
+               "ry" => string 10 ] @ attr
+  rect attr x y width width

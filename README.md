@@ -20,7 +20,7 @@ $ dotnet run -p src/witness.Client
 
 - [ ] : Rules and Judge
   - [x] : Hexagon
-  - [ ] : Square
+  - [x] : Square
   - [ ] : Tetris
   - [ ] : Hollow
   - [ ] : Cancellation

@@ -76,7 +76,10 @@ let initModel =
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
                  HexagonDot {row=1.; column=0.}
                  HexagonDot {row=1.; column=1.5}
-                 HexagonDot {row=3.; column=3.} ]
+                 HexagonDot {row=3.; column=3.}
+                 Square ( {row=0.5; column=0.5}, White )
+                 Square ( {row=1.5; column=1.5}, Black )
+                 Square ( {row=2.5; column=1.5}, White ) ]
     judgedElements = [] }
 
 /// ==== ==== message ==== ====
@@ -96,11 +99,13 @@ type Message =
 let inline updateElementPosition f wh model =
   let elements = model.elements
   let endX, endY = float <| model.grid.gridWidth - 1, float <| model.grid.gridHeight - 1
-  let f = (fun x -> match x, wh with
+  let g = (fun x -> match x, wh with
+                      // ---- Entry ----
                       | Entry p, GridWidth when p.column = endX ->
                         Entry {row=p.row; column=f p.column} 
                       | Entry p, GridHeight when p.row = endY ->
                         Entry {row=f p.row; column=p.column}
+                      // ---- Goal ----
                       | Goal (p,t), GridWidth when p.column = endX ->
                         Goal ( {row=p.row; column=f p.column},
                                {row=t.row; column=f t.column} )
@@ -108,7 +113,13 @@ let inline updateElementPosition f wh model =
                         Goal ( {row=f p.row; column=p.column},
                                {row=f t.row; column=t.column} )
                       | e, _ -> e )
-  { model with elements = List.map f elements }
+  let inline h x = 
+    match x with
+      | Entry _ | Goal _ -> true
+      | _ -> false
+  let elements = List.filter h elements
+  let elements = List.map g elements
+  { model with elements = elements }
 
 let inline updateBasePosition model =
   let positions = model.positions
@@ -228,7 +239,7 @@ let update message model =
     let positions = { model.positions with basep = Position.Zero
                                            history = [] }
     let {current=current; pathes=pathes} = model.lightpathes
-    let judgedElements = runJudge model.elements pathes
+    let judgedElements = runJudge model.elements pathes model.grid
     let solved = if List.forall (fun {elm=_; satisfy=satisfy} -> satisfy )
                                 judgedElements
                          then Solved else Miss
@@ -275,14 +286,21 @@ let inline renderElements dispatch model grid =
       | HexagonDot p ->
         renderHexagonDot [ "stroke" => "gray"
                            "fill" => "gray" ] p grid
+      | Square (p, color) ->
+        let color = color2str color
+        renderSquare [ "stroke" => color
+                       "fill" => color ] p grid
   (List.map f model.elements)
 
 let inline redboxElements model grid =
+    let attr = [ "fill" => "#ff6347" 
+                 "fill-opacity" => 0.5 ]
     let inline f {elm=elm; satisfy=satisfy} =
       match elm, satisfy with
         | HexagonDot p, false ->
-          renderRed [ "stroke" => "#ff6347"
-                      "fill" => "#ff6347" ] p grid (grid.Step*0.2)
+          renderRed attr p grid (grid.Step*0.2)
+        | Square (p,_), false ->
+          renderRed attr p grid (grid.Step - grid.Step*0.2)
         | _ -> Empty
     List.map f model.judgedElements
 
