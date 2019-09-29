@@ -12,7 +12,7 @@ open Rules
 
 /// ==== ==== Expand ==== ====
 
-let styles (styles: list<string>) : Attr =
+let inline styles (styles: list<string>) : Attr =
   "style" => String.concat " " styles
 
 /// ==== ==== model ==== ====
@@ -28,13 +28,13 @@ type Position =
   static member inline Zero = {x=0.; y=0.}
   static member inline (-) (a: Position, b: Position) =
     { x = a.x - b.x; y = a.y - b.y }
-  member p.SwitchDirection =
+  member inline p.SwitchDirection =
     match p.x, p.y with
     | x,y when abs x > abs y->
        { x = x; y = 0. }
     | _,y ->
        { x = 0.; y = y }
-  member x.ToGridPoint step =
+  member inline x.ToGridPoint step =
     { row= x.y / step; column= x.x / step }
 
 type Positions =
@@ -96,7 +96,7 @@ type Message =
 
 /// ==== ==== update ==== ====
 
-let inline updateElementPosition f wh model =
+let updateElementPosition f wh model =
   let elements = model.elements
   let endX, endY = float <| model.grid.gridWidth - 1, float <| model.grid.gridHeight - 1
   let g = (fun x -> match x, wh with
@@ -135,7 +135,7 @@ let inline updateBaseBackToHistory model =
       let positions = { positions with basep = h; history = l }
       { model with positions = positions }
 
-let inline updateSnake t pastPath nextPoint model =
+let updateSnake t pastPath nextPoint model =
   let grid = model.grid
   let maxX, maxY = float <| grid.gridWidth, float <| grid.gridHeight
   let {pathes=pathes} = model.lightpathes
@@ -163,7 +163,7 @@ let inline updateSnake t pastPath nextPoint model =
         |> updateBaseBackToHistory
     | _ -> model
   
-let inline updateLightPath model =
+let updateLightPath model =
   let grid = model.grid
   match model.mode with
     | PathDraw entry ->
@@ -257,7 +257,7 @@ let update message model =
     
 /// ==== ==== view ==== ====
 
-let inline isOnGoal model =
+let isOnGoal model =
   match model.mode with
     | PathDraw _ ->
       let {current=current; pathes=pathes} = model.lightpathes
@@ -269,14 +269,14 @@ let inline isOnGoal model =
         (Mode Nothing)
     | _ -> (Mode Nothing)
 
-let inline renderElements dispatch model grid =
+let renderElements dispatch model grid =
   let inline f elm =
     match elm with
       | Entry p ->
-          renderEntry [ classes [ "PuzzleEntry" ]
+          renderEntry [ "stroke" => color2str Black
+                        "fill" => color2str Black
+                        classes [ "PuzzleEntry" ]
                         "tabindex" => "1"
-                        "stroke" => color2str Black
-                        "fill" => color2str Black 
                         on.focus (fun _ -> dispatch (Mode (PathDraw p)))
                         on.blur (fun _ -> dispatch (isOnGoal model)) ]
                       p grid
@@ -292,7 +292,18 @@ let inline renderElements dispatch model grid =
                        "fill" => color ] p grid
   (List.map f model.elements)
 
-let inline redboxElements model grid =
+let setEntryClicky dispatch model grid =
+  let inline f elm =
+    match elm with
+      | Entry p ->
+        renderEntry [ classes [ "PuzzleEntry" ]
+                      "fill-opacity" => 0.
+                      ]
+                    p grid
+      | _ -> Empty
+  (List.map f model.elements)
+
+let redboxElements model grid =
     let attr = [ "fill" => "#ff6347" 
                  "fill-opacity" => 0.5 ]
     let inline f {elm=elm; satisfy=satisfy} =
@@ -309,7 +320,7 @@ let inline DisplayWhenMiss solved =
     | Miss -> "display" => "inline"
     | _ -> "display" => "none"
 
-let inline renderLightPath lightpathes grid =
+let renderLightPath lightpathes grid =
   match lightpathes with
     | {entrypoint=Some entry; current=current; pathes=[]} ->
       List.append
@@ -373,7 +384,12 @@ let view model dispatch =
                               group [ "stroke" => color2str White
                                       "fill" => color2str White  
                                       styles [ solvedGlow model.solved ] ]
-                                    (grid |> renderLightPath model.lightpathes) ] ] ]
+                                    (grid |> renderLightPath model.lightpathes) ]
+                      //group [ "transform" => "translate(" 
+                      //                       + string (float grid.Step / 2.) + ","
+                      //                       + string (float grid.Step / 2.) + ")" ]
+                      //      [ group [] (grid |> setEntryClicky dispatch model) ] 
+                      ] ]
         div [] [ text <| "lightpathes: " + string model.lightpathes ] ]
 
 type MyApp() =

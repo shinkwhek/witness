@@ -62,7 +62,7 @@ type Point =
   member inline x.LookLeft _ =
     let x = x - {row=0.; column=1.}
     if x.column >= 0. then Some x else None
-  member inline x.LookAround grid =
+  member x.LookAround grid =
     let up, down = x.LookUp grid, x.LookDown grid
     let right, left = x.LookRight grid, x.LookLeft grid
     let rec filter r lst =
@@ -79,7 +79,7 @@ type Path =
     static member inline Dot {head=h1; tail=t1} {head=h2; tail=t2} =
       let v1, v2 = t1 - h1, t2 - h2
       v1.row * v2.row + v1.column * v2.column
-    member inline x.Straddle p1 p2 =
+    member x.Straddle p1 p2 =
       let s1, s2 = x.head - p1, x.tail - p2
       1. > s1.Norm && 1. > s2.Norm
       && Path.Dot x {head=p1; tail=p2} = 0.
@@ -106,7 +106,7 @@ let inline isOnElement {row=y; column=x} elements =
       | _ -> true
   (List.forall f elements)
 
-let inline isOnGoal p elements =
+let isOnGoal p elements =
   let inline f element =
     match element with
       | Goal (_, tail) ->

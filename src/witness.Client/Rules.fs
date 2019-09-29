@@ -30,7 +30,7 @@ let inline skipEntryGoal jes =
 
 // ==== ==== Rules ==== ====
 
-let inline judgeHexagonDot pathes jes =
+let judgeHexagonDot pathes jes =
   let inline rule {row=y; column=x} path =
     let { head = {row=hy; column=hx}
           tail = {row=ty; column=tx} } = path
@@ -48,7 +48,7 @@ let inline judgeHexagonDot pathes jes =
         { elm=elm; satisfy=satisfy }
   map f jes |> JE
 
-let inline judgeSquare pathes grid elements jes =  
+let judgeSquare pathes grid elements jes =  
   let inline rule color origin =
     let otherColorSquarePoints =
       elements
@@ -81,7 +81,7 @@ let inline judgeSquare pathes grid elements jes =
 
 // ==== ==== ==== ====
 
-let inline judgeRules elements pathes grid =
+let judgeRules elements pathes grid =
   JudgedElements.Return elements
   >>= skipEntryGoal
   >>= judgeHexagonDot pathes

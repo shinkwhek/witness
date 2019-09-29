@@ -37,9 +37,9 @@ let inline lineVertivalTo y t =
     | Relative -> "v "
   t + string y + " "
 
-let lineClose = "Z"
+let [<Literal>] LineClose = "Z"
 
-let inline bezier2 (a1, a2) x y t =
+let bezier2 (a1, a2) x y t =
   let t =
     match t with
     | Global -> "Q "
@@ -47,7 +47,7 @@ let inline bezier2 (a1, a2) x y t =
   let a1, a2, x, y = string a1, string a2, string x, string y
   t + a1 + " " + a2 + ", " + x + " " + y + " "
 
-let inline bezier2Link x y t =
+let bezier2Link x y t =
   let t =
     match t with
     | Global -> "T "
@@ -55,7 +55,7 @@ let inline bezier2Link x y t =
   let x, y = string x, string y
   t + x + ", " + y + " "
 
-let inline bezier3 (a1, a2) (b1, b2) x y t =
+let bezier3 (a1, a2) (b1, b2) x y t =
   let t =
     match t with
     | Global -> "C "
@@ -63,7 +63,7 @@ let inline bezier3 (a1, a2) (b1, b2) x y t =
   let a1, a2, b1, b2, x, y = string a1, string a2, string b1, string b2, string x, string y
   t + a1 + " " + a2 + ", " + b1 + " " + b2 + ", " + x + " " + y + " "
 
-let inline bezier3Link (a1, a2) x y t =
+let bezier3Link (a1, a2) x y t =
   let t =
     match t with
     | Global -> "S "
