@@ -28,7 +28,7 @@ let inline skipEntryGoal jes =
         { elm=elm; satisfy=satisfy }
   List.map f jes |> JE
 
-let rec groupSet grid pathes (s: Set<Point>) past (p: Point) =
+let rec setSet grid pathes (s: Set<Point>) past (p: Point) =
   let around = p.LookAround grid
                |> List.filter // inside pathes
                     (fun x -> List.forall
@@ -39,7 +39,7 @@ let rec groupSet grid pathes (s: Set<Point>) past (p: Point) =
   let around = around |> Set.filter (fun x -> not <| Set.contains x s)
   if around.IsEmpty
   then s
-  else let arounds = Set.map (groupSet grid pathes ((around.Add p)+s) (Some p)) around
+  else let arounds = Set.map (setSet grid pathes ((around.Add p)+s) (Some p)) around
        Set.fold (+) (Set.ofList []) arounds
 
 // ==== ==== Rules ==== ====
@@ -69,12 +69,32 @@ let judgeSquare pathes grid elements jes =
       |> List.filter (function | Square(_,c) when c<>color -> true
                                | _ -> false)
       |> List.map (fun x -> x.GetPos)
-    let group = groupSet grid pathes (Set.ofList []) None origin
-    List.forall (fun p -> not <| Set.contains p group) otherColorSquarePoints
+    let set = setSet grid pathes (Set.ofList []) None origin
+    List.forall (fun p -> not <| Set.contains p set) otherColorSquarePoints
 
   let inline f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
       | Square (origin, color), false when rule color origin ->
+        { elm=elm; satisfy=true }
+      | _ ->
+        { elm=elm; satisfy=satisfy }
+  map f jes |> JE
+
+let judgeStar pathes grid elements jes =
+  let inline rule color origin =
+    let otherColorPoints =
+      elements
+      |> List.filter (function | Square(_,c) | Star(_,c) when c=color -> true
+                               | _ -> false )
+      |> List.map (fun x -> x.GetPos)
+      |> Set.ofList
+    let set = setSet grid pathes (Set.ofList []) None origin
+    let set = Set.filter (fun p -> Set.contains p set) otherColorPoints
+    set.Count = 2
+
+  let inline f {elm=elm; satisfy=satisfy} =
+    match elm, satisfy with
+      | Star (origin, color), false when rule color origin ->
         { elm=elm; satisfy=true }
       | _ ->
         { elm=elm; satisfy=satisfy }
@@ -87,6 +107,7 @@ let judgeRules elements pathes grid =
   >>= skipEntryGoal
   >>= judgeHexagonDot pathes
   >>= judgeSquare pathes grid elements
+  >>= judgeStar pathes grid elements
 
 let inline runJudge elements pathes grid =
   let (JE jes) = judgeRules elements pathes grid

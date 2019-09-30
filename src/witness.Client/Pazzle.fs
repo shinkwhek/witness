@@ -89,10 +89,12 @@ type Element =
   | Goal of pos: Point * tail: Point
   | HexagonDot of pos: Point
   | Square of pos: Point * color: Color
+  | Star of pos: Point * color: Color
   with
     member inline x.GetPos =
       match x with
-        | Entry pos | Goal (pos,_) | HexagonDot pos | Square (pos,_) -> pos
+        | Entry pos | Goal (pos,_) | HexagonDot pos
+        | Square (pos,_) | Star (pos,_) -> pos
         
 
 type Elements = Element list

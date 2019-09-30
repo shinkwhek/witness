@@ -77,9 +77,14 @@ let initModel =
                  HexagonDot {row=1.; column=0.}
                  HexagonDot {row=1.; column=1.5}
                  HexagonDot {row=3.; column=3.}
+                 //Square ( {row=0.5; column=0.5}, White )
+                 //Square ( {row=1.5; column=1.5}, Black )
+                 //Square ( {row=2.5; column=1.5}, White ) 
                  Square ( {row=0.5; column=0.5}, White )
-                 Square ( {row=1.5; column=1.5}, Black )
-                 Square ( {row=2.5; column=1.5}, White ) ]
+                 Star ( {row=0.5; column=1.5}, White )
+                 Square ( {row=1.5; column=1.5}, White )
+                 Star ( {row=2.5; column=0.5}, Black )
+                 Square ( {row=2.5; column=1.5}, Black ) ]
     judgedElements = [] }
 
 /// ==== ==== message ==== ====
@@ -290,6 +295,10 @@ let renderElements dispatch model grid =
         let color = color2str color
         renderSquare [ "stroke" => color
                        "fill" => color ] p grid
+      | Star (p, color) ->
+        let color = color2str color
+        renderStar [ "stroke" => color
+                     "fill" => color ] p grid
   (List.map f model.elements)
 
 let setEntryClicky dispatch model grid =
@@ -310,7 +319,8 @@ let redboxElements model grid =
       match elm, satisfy with
         | HexagonDot p, false ->
           renderRed attr p grid (grid.Step*0.2)
-        | Square (p,_), false ->
+        | Square (p,_), false
+        | Star (p,_), false ->
           renderRed attr p grid (grid.Step - grid.Step*0.2)
         | _ -> Empty
     List.map f model.judgedElements

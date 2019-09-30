@@ -64,3 +64,12 @@ let renderSquare attr p grid =
   let attr = [ "rx" => string 10
                "ry" => string 10 ] @ attr
   rect attr x y width width
+
+let renderStar attr p grid =
+  let x, y, step = localPosition p grid
+  let rotate = [ "transform" => "rotate(45, " + string x + ", " + string y + ")" ]
+  let width = step / 3.
+  let x, y = x - width/2., y - width/2.
+  group attr
+        [ rect [] x y width width
+          rect rotate x y width width ]
