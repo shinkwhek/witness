@@ -28,6 +28,20 @@ let inline skipEntryGoal jes =
         { elm=elm; satisfy=satisfy }
   List.map f jes |> JE
 
+let rec groupSet grid pathes (s: Set<Point>) past (p: Point) =
+  let around = p.LookAround grid
+               |> List.filter // inside pathes
+                    (fun x -> List.forall
+                                (fun (path: Path) -> not <| path.Straddle p x)
+                                pathes)
+               |> Set.ofList
+  let around = match past with Some p -> around.Remove p | _ -> around
+  let around = around |> Set.filter (fun x -> not <| Set.contains x s)
+  if around.IsEmpty
+  then s
+  else let arounds = Set.map (groupSet grid pathes ((around.Add p)+s) (Some p)) around
+       Set.fold (+) (Set.ofList []) arounds
+
 // ==== ==== Rules ==== ====
 
 let judgeHexagonDot pathes jes =
@@ -55,22 +69,9 @@ let judgeSquare pathes grid elements jes =
       |> List.filter (function | Square(_,c) when c<>color -> true
                                | _ -> false)
       |> List.map (fun x -> x.GetPos)
-    let rec groupSet (s: Set<Point>) past (p: Point) =
-      let around = p.LookAround grid
-                   |> List.filter // inside pathes
-                        (fun x -> List.forall
-                                    (fun (path: Path) -> not <| path.Straddle p x)
-                                    pathes)
-                    |> Set.ofList
-      let around = match past with Some p -> around.Remove p | _ -> around
-      let around = around |> Set.filter (fun x -> not <| Set.contains x s)
-      if around.IsEmpty
-      then s
-      else let arounds = Set.map (groupSet ((around.Add p)+s) (Some p)) around
-           Set.fold (+) (Set.ofList []) arounds
-    let group = groupSet (Set.ofList []) None origin
+    let group = groupSet grid pathes (Set.ofList []) None origin
     List.forall (fun p -> not <| Set.contains p group) otherColorSquarePoints
-    
+
   let inline f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
       | Square (origin, color), false when rule color origin ->
