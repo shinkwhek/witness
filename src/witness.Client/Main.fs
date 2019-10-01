@@ -76,7 +76,8 @@ let initModel =
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
                  Triangle ( {row=0.5; column=0.5}, Orenge, Two )
                  Triangle ( {row=1.5; column=1.5}, Orenge, Two )
-                 Triangle ( {row=2.5; column=2.5}, Orenge, Three ) ]
+                 Triangle ( {row=2.5; column=2.5}, Orenge, Three )
+                 Cancellation {row=1.5; column=2.5} ]
     judgedElements = [] }
 
 /// ==== ==== message ==== ====
@@ -295,7 +296,12 @@ let renderElements dispatch model grid =
         let color = color2str color
         renderTriangle [ "stroke" => color
                          "fill" => color ] p count grid
-  (List.map f model.elements)
+      | Cancellation p ->
+        let color = color2str White
+        renderCancellation [ "stroke" => color
+                             "fill" => color ] p grid
+
+  List.map f model.elements
 
 let setEntryClicky dispatch model grid =
   let inline f elm =
@@ -317,7 +323,8 @@ let redboxElements model grid =
           renderRed attr p grid (grid.Step*0.2)
         | Square (p,_), false
         | Star (p,_), false
-        | Triangle (p,_,_), false ->
+        | Triangle (p,_,_), false
+        | Cancellation p, false ->
           renderRed attr p grid (grid.Step - grid.Step*0.2)
         | _ -> Empty
     List.map f model.judgedElements

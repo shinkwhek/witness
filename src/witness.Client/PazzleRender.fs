@@ -100,3 +100,16 @@ let renderTriangle attr p count grid =
             [ polygon attr trianglePoints1
               polygon attr trianglePoints2
               polygon attr trianglePoints3 ] )
+
+let renderCancellation attr p grid =
+  let x, y, step = localPosition p grid
+  let inline rotate r = [ "transform" => "rotate(" + string r + ", "
+                                         + string x + ", "
+                                         + string y + ")" ]
+  let height = step / 6.
+  let width = height / 2.
+  let x = x - width/2.
+  group attr 
+        [ rect (rotate 60) x y width height
+          rect (rotate 180) x y width height
+          rect (rotate -60) x y width height ]

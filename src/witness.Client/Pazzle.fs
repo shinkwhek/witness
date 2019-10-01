@@ -103,12 +103,14 @@ type Element =
   | Square of pos: Point * color: Color
   | Star of pos: Point * color: Color
   | Triangle of pos: Point * color: Color * count: Count
+  | Cancellation of pos: Point
   with
     member inline x.GetPos =
       match x with
         | Entry pos | Goal (pos,_) | HexagonDot pos
         | Square (pos,_) | Star (pos,_)
-        | Triangle (pos,_,_) -> pos
+        | Triangle (pos,_,_)
+        | Cancellation pos -> pos
         
 
 type Elements = Element list

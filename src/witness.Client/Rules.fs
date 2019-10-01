@@ -1,6 +1,7 @@
 module Rules
 
 open FSharpPlus
+open FSharpPlus.Data
 
 open Pazzle
 
@@ -62,7 +63,8 @@ let judgeHexagonDot pathes jes =
         { elm=elm; satisfy=satisfy }
   map f jes |> JE
 
-let judgeSquare pathes grid elements jes =  
+let judgeSquare pathes grid jes =
+  let elements = jes |> List.map (fun {elm=elm} -> elm)  
   let inline rule color origin =
     let otherColorSquarePoints =
       elements
@@ -80,7 +82,8 @@ let judgeSquare pathes grid elements jes =
         { elm=elm; satisfy=satisfy }
   map f jes |> JE
 
-let judgeStar pathes grid elements jes =
+let judgeStar pathes grid jes =
+  let elements = jes |> List.map (fun {elm=elm} -> elm)
   let inline rule color origin =
     let otherColorPoints =
       elements
@@ -118,15 +121,15 @@ let judgeTriangle pathes jes =
       | _ ->
         {elm=elm; satisfy=satisfy}
   map f jes |> JE
-  
+
 // ==== ==== ==== ====
 
 let judgeRules elements pathes grid =
   JudgedElements.Return elements
   >>= skipEntryGoal
   >>= judgeHexagonDot pathes
-  >>= judgeSquare pathes grid elements
-  >>= judgeStar pathes grid elements
+  >>= judgeSquare pathes grid
+  >>= judgeStar pathes grid
   >>= judgeTriangle pathes
 
 let inline runJudge elements pathes grid =
