@@ -74,17 +74,9 @@ let initModel =
                     pathes = [] }
     elements = [ Entry {row=0.0; column=0.0}
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
-                 HexagonDot {row=1.; column=0.}
-                 HexagonDot {row=1.; column=1.5}
-                 HexagonDot {row=3.; column=3.}
-                 //Square ( {row=0.5; column=0.5}, White )
-                 //Square ( {row=1.5; column=1.5}, Black )
-                 //Square ( {row=2.5; column=1.5}, White ) 
-                 Square ( {row=0.5; column=0.5}, White )
-                 Star ( {row=0.5; column=1.5}, White )
-                 Square ( {row=1.5; column=1.5}, White )
-                 Star ( {row=2.5; column=0.5}, Black )
-                 Square ( {row=2.5; column=1.5}, Black ) ]
+                 Triangle ( {row=0.5; column=0.5}, Orenge, Two )
+                 Triangle ( {row=1.5; column=1.5}, Orenge, Two )
+                 Triangle ( {row=2.5; column=2.5}, Orenge, Three ) ]
     judgedElements = [] }
 
 /// ==== ==== message ==== ====
@@ -299,6 +291,10 @@ let renderElements dispatch model grid =
         let color = color2str color
         renderStar [ "stroke" => color
                      "fill" => color ] p grid
+      | Triangle (p, color, count) ->
+        let color = color2str color
+        renderTriangle [ "stroke" => color
+                         "fill" => color ] p count grid
   (List.map f model.elements)
 
 let setEntryClicky dispatch model grid =
@@ -320,7 +316,8 @@ let redboxElements model grid =
         | HexagonDot p, false ->
           renderRed attr p grid (grid.Step*0.2)
         | Square (p,_), false
-        | Star (p,_), false ->
+        | Star (p,_), false
+        | Triangle (p,_,_), false ->
           renderRed attr p grid (grid.Step - grid.Step*0.2)
         | _ -> Empty
     List.map f model.judgedElements

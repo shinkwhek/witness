@@ -6,12 +6,14 @@ type Color =
   | Black
   | White
   | BackGround
+  | Orenge
   with
     member x.ToStr =
       match x with
       | Black -> "black"
       | White -> "White"
       | BackGround -> "#5d6c7e"
+      | Orenge -> "#ffa600"
 
 let inline color2str (x: ^X) =
   (^X: (member ToStr : string) x)
@@ -53,15 +55,19 @@ type Point =
   member inline x.LookUp _ =
     let x = x - {row=1.; column=0.}
     if x.row >= 0. then Some x else None
+  member inline x.LookUpIgnoreGrid = x - {row=1.; column=0.}
   member inline x.LookDown grid = 
     let x = x + {row=1.; column=0.}
     if float <| grid.gridHeight-1 >= x.row then Some x else None
+  member inline x.LookDownIgnoreGrid = x + {row=1.; column=0.}
   member inline x.LookRight grid =
     let x = x + {row=0.; column=1.}
     if float <| grid.gridWidth-1 >= x.column then Some x else None
+  member inline x.LookRightIgnoreGrid = x + {row=0.; column=1.}
   member inline x.LookLeft _ =
     let x = x - {row=0.; column=1.}
     if x.column >= 0. then Some x else None
+  member inline x.LookLeftIgnoreGrid = x - {row=0.; column=1.}
   member x.LookAround grid =
     let up, down = x.LookUp grid, x.LookDown grid
     let right, left = x.LookRight grid, x.LookLeft grid
@@ -71,6 +77,10 @@ type Point =
         | None::l -> filter r l
         | (Some a)::l -> filter (a::r) l
     filter [] [up; down; right; left]
+  member x.LookAroundIgnoreGrid =
+    let up, down = x.LookUpIgnoreGrid, x.LookDownIgnoreGrid
+    let right, left = x.LookRightIgnoreGrid, x.LookLeftIgnoreGrid
+    [ up; down; right; left ]
 
 type Path =
   { head : Point
@@ -83,18 +93,22 @@ type Path =
       let s1, s2 = x.head - p1, x.tail - p2
       1. > s1.Norm && 1. > s2.Norm
       && Path.Dot x {head=p1; tail=p2} = 0.
-     
+
+type Count = One | Two | Three
+
 type Element =
   | Entry of pos: Point
   | Goal of pos: Point * tail: Point
   | HexagonDot of pos: Point
   | Square of pos: Point * color: Color
   | Star of pos: Point * color: Color
+  | Triangle of pos: Point * color: Color * count: Count
   with
     member inline x.GetPos =
       match x with
         | Entry pos | Goal (pos,_) | HexagonDot pos
-        | Square (pos,_) | Star (pos,_) -> pos
+        | Square (pos,_) | Star (pos,_)
+        | Triangle (pos,_,_) -> pos
         
 
 type Elements = Element list

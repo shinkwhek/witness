@@ -100,6 +100,25 @@ let judgeStar pathes grid elements jes =
         { elm=elm; satisfy=satisfy }
   map f jes |> JE
 
+let judgeTriangle pathes jes =
+  let inline rule count (origin: Point) =
+    let around = origin.LookAroundIgnoreGrid
+                 |> List.filter // straddles
+                      (fun x -> List.exists
+                                  (fun (path: Path) -> path.Straddle origin x)
+                                  pathes)
+                 |> Set.ofList
+    let count = match count with One -> 1 | Two -> 2 | Three -> 3
+    around.Count = count
+
+  let inline f {elm=elm; satisfy=satisfy} =
+    match elm, satisfy with
+      | Triangle (origin, _, count), false when rule count origin ->
+        { elm=elm; satisfy=true }
+      | _ ->
+        {elm=elm; satisfy=satisfy}
+  map f jes |> JE
+  
 // ==== ==== ==== ====
 
 let judgeRules elements pathes grid =
@@ -108,6 +127,7 @@ let judgeRules elements pathes grid =
   >>= judgeHexagonDot pathes
   >>= judgeSquare pathes grid elements
   >>= judgeStar pathes grid elements
+  >>= judgeTriangle pathes
 
 let inline runJudge elements pathes grid =
   let (JE jes) = judgeRules elements pathes grid

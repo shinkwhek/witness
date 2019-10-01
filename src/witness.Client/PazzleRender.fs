@@ -1,5 +1,7 @@
 module PazzleRender
 
+open System
+
 open Bolero
 open Bolero.Html
 open Svg
@@ -73,3 +75,28 @@ let renderStar attr p grid =
   group attr
         [ rect [] x y width width
           rect rotate x y width width ]
+
+let renderTriangle attr p count grid =
+  let x, y, step = localPosition p grid
+  let width = step / 6.
+  let height = sin(Math.PI / 3.) * width
+  let trianglePoints = [ (0., -height/2. ); (width/2., height/2.); (-width/2., height/2.) ]
+  let inline f(a,b) = (a+x, b+y)
+  let inline offset o (a,b) = (a+o, b)
+  group attr
+        (match count with
+          | One ->
+            let trianglePoints1 = trianglePoints |> List.map f
+            [ polygon attr trianglePoints1 ]
+          | Two ->
+            let trianglePoints1 = trianglePoints |> List.map (f >> offset (- width*1.3/2.)) 
+            let trianglePoints2 = trianglePoints |> List.map (f >> offset (width*1.3/2.))
+            [ polygon attr trianglePoints1
+              polygon attr trianglePoints2 ]
+          | Three ->
+            let trianglePoints1 = trianglePoints |> List.map f
+            let trianglePoints2 = trianglePoints |> List.map (f >> offset (-width*1.3))
+            let trianglePoints3 = trianglePoints |> List.map (f >> offset (width*1.3))
+            [ polygon attr trianglePoints1
+              polygon attr trianglePoints2
+              polygon attr trianglePoints3 ] )
