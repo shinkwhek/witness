@@ -119,81 +119,11 @@ let updateElementPosition f wh model =
   let elements = List.map g elements
   { model with elements = elements }
 
-let inline updateBasePosition model =
-  let positions = model.positions
-  let history = positions.basep::positions.history
-  let positions = { positions with basep = positions.currentp; history=history }
-  { model with positions = positions }
-
-let inline updateBaseBackToHistory model =
-  let positions = model.positions
-  match positions.history with
-    | [] -> model
-    | h::l ->
-      let positions = { positions with basep = h; history = l }
-      { model with positions = positions }
-
-let updateSnake t pastPath nextPoint model =
-  let grid = model.grid
-  let maxX, maxY = float <| grid.gridWidth, float <| grid.gridHeight
-  let {pathes=pathes} = model.lightpathes
-  let {row=backY; column=backX} = pastPath.head - pastPath.tail
-  let isInsidegrid =
-    let x,y = nextPoint.column, nextPoint.row
-    not (x = maxX || y = maxY || x = -1. || y = -1.)
-  match t, pathes with
-    | {row=y; column=x}, pathes
-      when isInsidegrid && ( abs x >= 1. || abs y >= 1. ) ->
-        let newPath = {head=pastPath.tail; tail=nextPoint}
-        let lightpathes = { model.lightpathes with current=nextPoint
-                                                   pathes=newPath::pathes }
-        { model with lightpathes = lightpathes }
-        |> updateBasePosition
-    | {row=y; column=x}, _::pathes
-      when backX * x > 0. && (0.3 > abs y) ->
-        let lightpathes = { model.lightpathes with pathes=pathes }
-        { model with lightpathes = lightpathes }
-        |> updateBaseBackToHistory
-    | {row=y; column=x}, _::pathes
-      when backY * y > 0. && 0.3 > abs x ->
-        let lightpathes = { model.lightpathes with pathes=pathes }
-        { model with lightpathes = lightpathes }
-        |> updateBaseBackToHistory
-    | _ -> model
-  
 let updateLightPath model =
   let grid = model.grid
   match model.mode with
     | PathDraw entry ->
-      let {current=current; pathes=pathes} = model.lightpathes
-      let inline ignorePointOutsideGrid p =
-        let width, height = float <| grid.gridWidth-1, float <| grid.gridHeight-1
-        match p with
-        | {row=y; column=x}
-          when (width >= x && x >= 0. && height >= y && y >= 0.) ||
-               isOnElement p model.elements -> p
-        | _ -> current
-      let pastHead, pastTail = match pathes with
-                                 | [] -> entry, entry
-                                 | path::_ -> path.head, path.tail
-      let t = model.positions.Diff.ToGridPoint grid.Step
-      let directionUnit = t.SwitchDirection.Unit
-      let nextPoint = pastTail + directionUnit
-      let current = match directionUnit with
-                      | {row=0.; column=_} ->
-                        let t = abs t.column
-                        (1. - t)*pastTail + t*nextPoint
-                        |> ignorePointOutsideGrid
-                      | {row=_; column=0.} ->
-                        let t = abs t.row
-                        (1. - t)*pastTail + t*nextPoint
-                        |> ignorePointOutsideGrid
-                      | _ -> current
-      let lightpathes = { model.lightpathes with current=current
-                                                 entrypoint=Some entry
-                                                 pathes=pathes }
-      { model with lightpathes = lightpathes }
-      |> updateSnake t {head=pastHead; tail=pastTail} nextPoint
+      model
     | _ -> model
 
 
@@ -219,7 +149,7 @@ let update message model =
     { model with grid = grid }
   /// --- mode switch ---
   | Mode (PathDraw entry) ->
-    let model = updateBasePosition model
+    //let model = updateBasePosition model
     let lightpathes = { model.lightpathes with entrypoint=Some entry }
     { model with mode = PathDraw entry
                  solved = Default
@@ -231,7 +161,7 @@ let update message model =
     let positions = { model.positions with currentp = p }
     let model = { model with positions = positions }
     model
-    |> updateLightPath
+    // |> updateLightPath
   /// ---- Judgement ---
   | Mode Judgement ->
     let positions = { model.positions with basep = Position.Zero
