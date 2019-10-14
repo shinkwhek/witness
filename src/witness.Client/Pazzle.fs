@@ -8,7 +8,7 @@ type Color =
   | BackGround
   | Orenge
   with
-    member x.ToStr =
+    member inline x.ToStr =
       match x with
       | Black -> "black"
       | White -> "White"
@@ -68,7 +68,7 @@ type Point =
     let x = x - {row=0.; column=1.}
     if x.column >= 0. then Some x else None
   member inline x.LookLeftIgnoreGrid = x - {row=0.; column=1.}
-  member x.LookAround grid =
+  member inline x.LookAround grid =
     let up, down = x.LookUp grid, x.LookDown grid
     let right, left = x.LookRight grid, x.LookLeft grid
     let rec filter r lst =
@@ -77,7 +77,7 @@ type Point =
         | None::l -> filter r l
         | (Some a)::l -> filter (a::r) l
     filter [] [up; down; right; left]
-  member x.LookAroundIgnoreGrid =
+  member inline x.LookAroundIgnoreGrid =
     let up, down = x.LookUpIgnoreGrid, x.LookDownIgnoreGrid
     let right, left = x.LookRightIgnoreGrid, x.LookLeftIgnoreGrid
     [ up; down; right; left ]

@@ -71,19 +71,19 @@ let bezier3Link (a1, a2) x y t =
   let a1, a2, x, y = string a1, string a2, string x, string y
   t + a1 + " " + a2 + ", " + x + " " + y + " "
 
-let path attrs (l : string list) =
+let inline path attrs (l : string list) =
   let param = "d" => List.fold (+) "" l
   let atters = param :: attrs
   elt "path" atters []
 
-let circle attrs cx cy r =
+let inline circle attrs cx cy r =
   let attrs =
     List.append [ "cx" => cx
                   "cy" => cy
                   "r" => r ] attrs
   elt "circle" attrs []
 
-let rect attrs x y width height =
+let inline rect attrs x y width height =
   let attrs = 
     List.append [ "x" => x 
                   "y" => y
@@ -91,7 +91,7 @@ let rect attrs x y width height =
                   "height" => height ] attrs
   elt "rect" attrs []
 
-let line attrs x1 y1 x2 y2 =
+let inline line attrs x1 y1 x2 y2 =
   let attrs =
     List.append [ "x1" => x1
                   "y1" => y1
