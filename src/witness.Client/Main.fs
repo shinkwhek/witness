@@ -44,11 +44,14 @@ type Positions =
   member inline x.Diff =
     x.currentp - x.basep     
 
+type Snake =
+  { current : Point 
+    pathes : Path list }
+
 type LightPathes =
   { entrypoint : Point option 
     goalpath : Path option
-    current : Point
-    pathes : Path list }
+    snake : Snake }
 
 type Model =
   { grid : Grid
@@ -70,8 +73,7 @@ let initModel =
                   history = [] } 
     lightpathes = { entrypoint = None
                     goalpath = None
-                    current = Point.Zero
-                    pathes = [] }
+                    snake = { current = Point.Zero; pathes = [] } }
     elements = [ Entry {row=0.0; column=0.0}
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
                  Triangle ( {row=0.5; column=0.5}, Orenge, Two )
@@ -166,7 +168,7 @@ let update message model =
   | Mode Judgement ->
     let positions = { model.positions with basep = Position.Zero
                                            history = [] }
-    let {current=current; pathes=pathes} = model.lightpathes
+    let {current=current; pathes=pathes} = model.lightpathes.snake
     let judgedElements = runJudge model.elements pathes model.grid
     let solved = if List.forall (fun {elm=_; satisfy=satisfy} -> satisfy )
                                 judgedElements
@@ -188,7 +190,7 @@ let update message model =
 let isOnGoal model =
   match model.mode with
     | PathDraw _ ->
-      let {current=current; pathes=pathes} = model.lightpathes
+      let {current=current; pathes=pathes} = model.lightpathes.snake
       if isOnGoal current model.elements
       then
         printfn "Judgement!"
@@ -266,11 +268,11 @@ let inline DisplayWhenMiss solved =
 
 let renderLightPath lightpathes grid =
   match lightpathes with
-    | {entrypoint=Some entry; current=current; pathes=[]} ->
+    | {entrypoint=Some entry; snake = { current=current; pathes=[] } } ->
       List.append
         [ renderEntry [] entry grid ]
         [ renderLine [] entry current grid ]
-    | {entrypoint=Some entry; current=current; pathes=pathes} ->
+    | {entrypoint=Some entry; snake = { current=current; pathes=pathes } } ->
       let p2 = pathes.Head.tail
       let path : Path = { head=current; tail=p2}
       List.append
