@@ -90,6 +90,7 @@ let init (deps: IDeps) =
                     goalpath = None
                     snake = { current = Point.Zero; pathes = [] } }
     elements = [ Entry {row=0.0; column=0.0}
+                 Entry {row=3.0; column=3.0}
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
                  Triangle ( {row=0.5; column=0.5}, Orenge, Two )
                  Triangle ( {row=1.5; column=1.5}, Orenge, Two )
@@ -173,6 +174,7 @@ let updateSnake next model =
   | _ -> model
 
 let updateLightPath model =
+  let movestep = 200.
   let grid = model.grid
   let width, height = float <| grid.gridWidth-1, float <| grid.gridHeight-1
   let current = model.lightpathes.snake.current
@@ -191,7 +193,7 @@ let updateLightPath model =
                    else { pastPath.tail with column = pastPath.tail.column-1. }
         let inline guard d =
           if width >= current.column && current.column >= 0. && (0.4 > abs(current.row - pastPath.tail.row))
-          then {row=pastPath.tail.row; column = current.column + d/100.}
+          then {row=pastPath.tail.row; column = current.column + d/movestep}
           else current
 
         let snake = { model.lightpathes.snake with current = guard d }
@@ -204,7 +206,7 @@ let updateLightPath model =
                              else { pastPath.tail with row = pastPath.tail.row-1. }
         let inline guard d =
           if height >= current.row && current.row >= 0. && (0.4 > abs(current.column - pastPath.tail.column))
-          then {row=current.row + d/100.; column=pastPath.tail.column}
+          then {row=current.row + d/movestep; column=pastPath.tail.column}
           else current
 
         let snake = { model.lightpathes.snake with current = guard d }
@@ -237,7 +239,8 @@ let update (deps: IDeps) message model =
     { model with grid = grid }, Cmd.none
   /// --- mode switch ---
   | Mode (PathDraw entry) ->
-    let lightpathes = { model.lightpathes with entrypoint=Some entry }
+    let snake = { model.lightpathes.snake with current = entry }
+    let lightpathes = { model.lightpathes with entrypoint=Some entry; snake = snake }
     { model with mode = PathDraw entry
                  solved = Default
                  lightpathes = lightpathes }, Cmd.none
