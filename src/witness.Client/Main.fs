@@ -139,27 +139,80 @@ let updateElementPosition f wh model =
   let elements = List.map g elements
   { model with elements = elements }
 
+let updateSnake next model = 
+  let grid = model.grid
+  let current = model.lightpathes.snake.current
+  let pathes = model.lightpathes.snake.pathes
+  
+  match model.mode with
+  | PathDraw entry ->
+    match pathes with
+    // add path
+    | [] when let {column=x; row=y} = current - entry
+              (abs y >= 1. || abs x >= 1.) ->
+      let snake = { model.lightpathes.snake with pathes = [ {head=entry; tail=next} ] }
+      let lightpathes = { model.lightpathes with snake = snake }
+      { model with lightpathes = lightpathes }
+    | {tail=pastTail}::_ 
+      when let {column=x; row=y} = current - pastTail
+           (abs y >= 1. || abs x >= 1.) ->
+        let snake = { model.lightpathes.snake with pathes = {head=pastTail; tail=next}::pathes }
+        let lightpathes = { model.lightpathes with snake = snake }
+        { model with lightpathes = lightpathes }
+    // del path
+    | {head=pastHead; tail=pastTail}::pathes
+      when let {column=backX; row=backY} = pastHead - pastTail
+           let {column=x; row=y} = current - pastTail
+           (max (backX*x) (backY*y) > 0.) ->
+        let snake = { model.lightpathes.snake with pathes = pathes }
+        let lightpathes = { model.lightpathes with snake = snake }
+        { model with lightpathes = lightpathes }
+
+    | _ ->
+      model
+  | _ -> model
+
 let updateLightPath model =
   let grid = model.grid
+  let width, height = float <| grid.gridWidth-1, float <| grid.gridHeight-1
+  let current = model.lightpathes.snake.current
+  let pathes = model.lightpathes.snake.pathes
+
   match model.mode with
     | PathDraw entry ->
+      let pastPath = match pathes with
+                     | [] -> { head=entry; tail=entry }
+                     | path::_ -> { head=path.head; tail=path.tail }
       match model.positions.movementp with
-      | Horizontal dx ->
-        let current = model.lightpathes.snake.current
-        let newCurrent = { current with column = current.column + dx }
-        let snake = { model.lightpathes.snake with current = newCurrent }
-        let lightpathes = { model.lightpathes with snake = snake }
-        { model with lightpathes = lightpathes }
-      | Vertical dy ->
-        let current = model.lightpathes.snake.current
-        let newCurrent = { current with row = current.row + dy }
-        let snake = { model.lightpathes.snake with current = newCurrent }
-        let lightpathes = { model.lightpathes with snake = snake }
-        { model with lightpathes = lightpathes }
       | NoMove -> model
+      | Horizontal d ->
+        let next = if d > 0.
+                   then  { pastPath.tail with column = pastPath.tail.column+1. }
+                   else { pastPath.tail with column = pastPath.tail.column-1. }
+        let inline guard d =
+          if width >= current.column && current.column >= 0. && (0.4 > abs(current.row - pastPath.tail.row))
+          then {row=pastPath.tail.row; column = current.column + d/100.}
+          else current
+
+        let snake = { model.lightpathes.snake with current = guard d }
+        let lightpathes = { model.lightpathes with snake = snake }
+        { model with lightpathes = lightpathes }
+        |> updateSnake next
+
+      | Vertical d ->
+        let next = if d > 0. then { pastPath.tail with row = pastPath.tail.row+1. }
+                             else { pastPath.tail with row = pastPath.tail.row-1. }
+        let inline guard d =
+          if height >= current.row && current.row >= 0. && (0.4 > abs(current.column - pastPath.tail.column))
+          then {row=current.row + d/100.; column=pastPath.tail.column}
+          else current
+
+        let snake = { model.lightpathes.snake with current = guard d }
+        let lightpathes = { model.lightpathes with snake = snake }
+        { model with lightpathes = lightpathes }
+        |> updateSnake next
 
     | _ -> model
-
 
 let update (deps: IDeps) message model =
   let grid = model.grid
@@ -193,9 +246,8 @@ let update (deps: IDeps) message model =
   /// ---- mouse action ----
   | MouseMovement (dx, dy) ->
     let inline guard x y =
-      if abs x > abs y
-      then Horizontal <| x / 200.
-      else Vertical <| y / 200.
+      if abs x > abs y then Horizontal <| x
+      else Vertical <| y
     let positions = { model.positions with movementp = guard dx dy }
     { model with positions = positions }
     |> updateLightPath
@@ -242,7 +294,9 @@ let renderElements dispatch model grid =
               ] [
             renderEntry [ "stroke" => color2str Black
                           "fill" => color2str Black
-                          on.click (fun _ -> dispatch (Mode (PathDraw p)))
+                          on.click (fun _ -> dispatch <| match model.mode with
+                                                         | PathDraw _ -> Mode Nothing
+                                                         | _ -> Mode (PathDraw p))
                           //attr.classes ["PuzzleEntry"]
                         ]
                         p grid
@@ -341,8 +395,8 @@ let view (deps: IDeps) model dispatch =
             div [] [ text <| "gridHeight: " + string grid.gridHeight
                      button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
                      button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
-            div [] [ text <| "Mode: " + string model.mode ]
-            div [] [ text <| "movement: " + string model.positions.movementp ]
+            //div [] [ text <| "Mode: " + string model.mode ]
+            //div [] [ text <| "movement: " + string model.positions.movementp ]
             div [] [ text <| "Solved?: " + string model.solved ]
             div [ attr.classes [ "puzzle" ] ]
                 [ svg [ "width" => grid.Width
@@ -369,7 +423,7 @@ let view (deps: IDeps) model dispatch =
                          //                        + string (float grid.Step / 2.) + ")" ]
                          //       [ group [] (grid |> setEntryClicky dispatch model) ] 
                         ] ]
-            div [] [ text <| "lightpathes: " + string model.lightpathes ] 
+            // div [] [ text <| "snake: " + string model.lightpathes.snake ] 
         
           ]
       script [ "type" => "text/javascript" ] [
@@ -386,9 +440,6 @@ let view (deps: IDeps) model dispatch =
                                  
     entryElements[i].addEventListener('click', clickEntry);
     function clickEntry() {
-      //entry.requestPointerLock = entry.requestPointerLock ||
-      //                           entry.mozRequestPointerLock ||
-      //                           entry.webkitRequestPointerLock;
       entry.requestPointerLock();
     }
     if ("onpointerlockchange" in document) {
