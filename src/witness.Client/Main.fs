@@ -57,8 +57,7 @@ type Movement =
   | Horizontal of float
 
 type Positions =
-  { movementp : Movement
-    history : Position list }
+  { movementp : Movement }
 
 type Snake =
   { current : Point 
@@ -84,18 +83,19 @@ let init (deps: IDeps) =
         gridHeight = 4 }
     mode = Nothing
     solved = Default
-    positions = { movementp = NoMove
-                  history = [] } 
+    positions = { movementp = NoMove }
     lightpathes = { entrypoint = None
                     goalpath = None
                     snake = { current = Point.Zero; pathes = [] } }
     elements = [ Entry {row=0.0; column=0.0}
                  Entry {row=3.0; column=3.0}
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
-                 Triangle ( {row=0.5; column=0.5}, Orenge, Two )
-                 Triangle ( {row=1.5; column=1.5}, Orenge, Two )
-                 Triangle ( {row=2.5; column=2.5}, Orenge, Three )
-                 Cancellation {row=1.5; column=2.5} ]
+                 HexagonDot {row=2.; column=2.}
+                 //Triangle ( {row=0.5; column=0.5}, Orenge, Two )
+                 //Triangle ( {row=1.5; column=1.5}, Orenge, Two )
+                 //Triangle ( {row=2.5; column=2.5}, Orenge, Three )
+                 //Cancellation {row=1.5; column=2.5} 
+                 ]
     judgedElements = [] }
   , Cmd.none
 
@@ -192,7 +192,9 @@ let updateLightPath model =
                    then  { pastPath.tail with column = pastPath.tail.column+1. }
                    else { pastPath.tail with column = pastPath.tail.column-1. }
         let inline guard d =
-          if width >= current.column && current.column >= 0. && (0.4 > abs(current.row - pastPath.tail.row))
+          if ( width >= current.column && current.column >= 0. 
+               && (0.4 > abs(current.row - pastPath.tail.row)) )
+             || isOnElement current model.elements
           then {row=pastPath.tail.row; column = current.column + d/movestep}
           else current
 
@@ -205,7 +207,9 @@ let updateLightPath model =
         let next = if d > 0. then { pastPath.tail with row = pastPath.tail.row+1. }
                              else { pastPath.tail with row = pastPath.tail.row-1. }
         let inline guard d =
-          if height >= current.row && current.row >= 0. && (0.4 > abs(current.column - pastPath.tail.column))
+          if ( height >= current.row && current.row >= 0.
+               && (0.4 > abs(current.column - pastPath.tail.column)) )
+             || isOnElement current model.elements
           then {row=current.row + d/movestep; column=pastPath.tail.column}
           else current
 
@@ -257,25 +261,28 @@ let update (deps: IDeps) message model =
     , Cmd.none
   /// ---- Judgement ---
   | Mode Judgement ->
-    let positions = { model.positions with history = [] }
     let {current=current; pathes=pathes} = model.lightpathes.snake
-    let judgedElements = runJudge model.elements pathes model.grid
-    let solved = if List.forall (fun {elm=_; satisfy=satisfy} -> satisfy )
-                                judgedElements
-                         then Solved else Miss
-    let lightpathes =
-      match solved, pathes with
-        | Solved, {head=_; tail=tail}::_ ->
-          let goalpath = { head=tail; tail=current }
-          { model.lightpathes with goalpath=Some goalpath }
-        | _ ->
-          let i, _ = init deps
-          i.lightpathes
-    { model with mode = Nothing
-                 solved = solved
-                 lightpathes = lightpathes
-                 positions = positions
-                 judgedElements = judgedElements }, Cmd.none
+    let elements = model.elements
+    if isOnGoal current elements
+    then
+      let judgedElements = runJudge model.elements pathes model.grid
+      let solved = if judgedElements |> List.forall (fun {satisfy=satisfy} -> satisfy)
+                   then Solved 
+                   else Miss
+      let lightpathes =
+        match solved, pathes with
+          | Solved, {head=_; tail=tail}::_ ->
+            let goalpath = { head=tail; tail=current }
+            { model.lightpathes with goalpath=Some goalpath }
+          | _ ->
+            let i, _ = init deps
+            i.lightpathes
+      { model with mode = Nothing
+                   solved = solved
+                   lightpathes = lightpathes
+                   judgedElements = judgedElements }, Cmd.none
+    else
+      init deps
     
 /// ==== ==== view ==== ====
 
@@ -288,6 +295,17 @@ let isOnGoal model =
       else Mode Nothing
     | _ -> Mode Nothing
 
+let renderEntryTouch dispatch model grid =
+  let inline f elm =
+    match elm with
+    | Entry p -> group [ attr.classes ["PuzzleEntry"]
+                         "fill-opacity" => 0. ]
+                       [ renderEntry [ on.click (fun _ -> dispatch <| Mode (PathDraw p)) ]
+                                     p
+                                     grid ]
+    | _ -> Node.Empty
+  List.map f model.elements
+
 let renderElements dispatch model grid =
   let inline f elm =
     match elm with
@@ -297,12 +315,11 @@ let renderElements dispatch model grid =
               ] [
             renderEntry [ "stroke" => color2str Black
                           "fill" => color2str Black
-                          on.click (fun _ -> dispatch <| match model.mode with
-                                                         | PathDraw _ -> Mode Nothing
-                                                         | _ -> Mode (PathDraw p))
+                          on.click (fun _ -> dispatch <| Mode (PathDraw p))
                           //attr.classes ["PuzzleEntry"]
                         ]
-                        p grid
+                        p
+                        grid
           ]
       | Goal (p,t) ->
         group [ "stroke" => color2str Black; "fill" => color2str Black ] [
@@ -327,18 +344,6 @@ let renderElements dispatch model grid =
         let color = color2str White
         renderCancellation [ "stroke" => color
                              "fill" => color ] p grid
-
-  List.map f model.elements
-
-let setEntryClicky dispatch model grid =
-  let inline f elm =
-    match elm with
-      | Entry p ->
-        renderEntry [ attr.classes [ "PuzzleEntry" ]
-                      "fill-opacity" => 0.
-                      ]
-                    p grid
-      | _ -> Empty
   List.map f model.elements
 
 let redboxElements model grid =
@@ -361,15 +366,19 @@ let inline DisplayWhenMiss solved =
     | Miss -> "display" => "inline"
     | _ -> "display" => "none"
 
-let inline renderLightPath lightpathes grid =
+let renderLightPath dispatch lightpathes grid =
   match lightpathes with
     | {entrypoint=Some entry; snake = { current=current; pathes=[] } } ->
-        renderEntry [] entry grid
-        ::[ renderLine entry current grid ]
+      (group [ ]
+        [ renderEntry [ ]
+                      entry grid ])
+      ::[ renderLine entry current grid ]
     | {entrypoint=Some entry; snake = { current=current; pathes=pathes } } ->
       let p2 = pathes.Head.tail
       let path : Path = { head=current; tail=p2}
-      renderEntry [] entry grid
+      (group [ ]
+        [ renderEntry [ ] 
+                      entry grid ])
       ::(List.map (fun {head=p1; tail=p2} -> renderLine p1 p2 grid) <| path::pathes)
     | _ -> []
 
@@ -380,6 +389,7 @@ let inline solvedGlow solved =
 
 let view (deps: IDeps) model dispatch =
   let grid = model.grid
+  let offset = string (float grid.Step / 2.)
   let defs = defs []
                   [ filter [ "id" => "glow" ] 
                            [ elt "feGaussianBlur" [ "stdDeviation" => 2.5
@@ -409,8 +419,8 @@ let view (deps: IDeps) model dispatch =
                       <| List.append
                         [defs]
                         [ group [ "transform" => "translate(" 
-                                                 + string (float grid.Step / 2.) + ","
-                                                 + string (float grid.Step / 2.) + ")" ]
+                                                 + offset + ","
+                                                 + offset + ")" ]
                                 [ group [ "stroke" => color2str Black
                                           "fill" => color2str Black ]
                                         (grid |> renderGrid) 
@@ -420,14 +430,13 @@ let view (deps: IDeps) model dispatch =
                                   group [ "stroke" => color2str White
                                           "fill" => color2str White  
                                           styles [ solvedGlow model.solved ] ]
-                                        (grid |> renderLightPath model.lightpathes) ]
-                         // group [ "transform" => "translate(" 
-                         //                        + string (float grid.Step / 2.) + ","
-                         //                        + string (float grid.Step / 2.) + ")" ]
-                         //       [ group [] (grid |> setEntryClicky dispatch model) ] 
+                                        (grid |> renderLightPath dispatch model.lightpathes) ]
+                          //group [ "transform" => "translate("
+                              //                   + offset + ","
+                              //                   + offset + ")" ]
+                              //  (grid |> renderEntryTouch dispatch model) // これ起因でちゃんとsnakeできないバグ
                         ] ]
             // div [] [ text <| "snake: " + string model.lightpathes.snake ] 
-        
           ]
       script [ "type" => "text/javascript" ] [
         text """
@@ -441,10 +450,16 @@ let view (deps: IDeps) model dispatch =
                                document.mozExitPointerLock ||
                                document.webkitExitPointerLock;
                                  
-    entryElements[i].addEventListener('click', clickEntry);
-    function clickEntry() {
+    entry.onclick = start;
+    
+    function start () {
       entry.requestPointerLock();
     }
+    function end () {
+      document.exitPointerLock();
+      snakeEnd();
+    }
+
     if ("onpointerlockchange" in document) {
       document.addEventListener('pointerlockchange', lockChangeAlert, false);
     } else if ("onmozpointerlockchange" in document) {
@@ -453,14 +468,20 @@ let view (deps: IDeps) model dispatch =
 
     function lockChangeAlert() {
       if (document.pointerLockElement === entryElements[i] ||
-          document.mozpointerlockElement === entryElements[i]) {
+          document.mozPointerLockElement === entryElements[i] ||
+          document.webkitPointerLockElement === entryElements[i]) {
         document.addEventListener("mousemove", updatePosition, false);
+        document.addEventListener("click", end);
       } else {
         document.removeEventListener("mousemove", updatePosition, false);
+        document.removeEventListener("click", end);
       }
     }
     function updatePosition(e) {
       DotNet.invokeMethodAsync('witness.Client', 'Main.MyApp.UpdatePositionAsync', e.movementX, e.movementY);
+    }
+    function snakeEnd() {
+      DotNet.invokeMethodAsync('witness.Client', 'Main.MyApp.SnakeEndAsync');
     }
   }
 """
@@ -480,6 +501,11 @@ type MyApp() =
   [<JSInvokable("Main.MyApp.UpdatePositionAsync")>]
   static member UpdatePositionAsync (dx: float, dy: float) =
     msgDispatched.Trigger (MouseMovement (dx, dy))
+    Threading.Tasks.Task.CompletedTask
+
+  [<JSInvokable("Main.MyApp.SnakeEndAsync")>]
+  static member SnakeEndAsync () =
+    msgDispatched.Trigger (Mode Judgement)
     Threading.Tasks.Task.CompletedTask
 
   override this.Program = 
