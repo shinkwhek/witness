@@ -141,7 +141,6 @@ let updateElementPosition f wh model =
   { model with elements = elements }
 
 let updateSnake next model = 
-  let grid = model.grid
   let current = model.lightpathes.snake.current
   let pathes = model.lightpathes.snake.pathes
   
@@ -223,6 +222,15 @@ let updateLightPath model =
 let update (deps: IDeps) message model =
   let grid = model.grid
   match message with
+  /// ---- mouse action ----
+  | MouseMovement (dx, dy) ->
+    let inline guard x y =
+      if abs x > abs y then Horizontal <| x
+                       else Vertical <| y
+    let positions = { model.positions with movementp = guard dx dy }
+    { model with positions = positions }
+    |> updateLightPath
+    , Cmd.none
   | Nop -> model, Cmd.none
   /// --- edit grid ---
   | Inclease GridWidth ->
@@ -243,22 +251,17 @@ let update (deps: IDeps) message model =
     { model with grid = grid }, Cmd.none
   /// --- mode switch ---
   | Mode (PathDraw entry) ->
-    let snake = { model.lightpathes.snake with current = entry }
-    let lightpathes = { model.lightpathes with entrypoint=Some entry; snake = snake }
+    let snake = { current = entry; pathes = [] }
+    let lightpathes = { entrypoint=Some entry; goalpath=None; snake = snake }
     { model with mode = PathDraw entry
                  solved = Default
                  lightpathes = lightpathes }, Cmd.none
   | Mode Nothing ->
-    init deps
-  /// ---- mouse action ----
-  | MouseMovement (dx, dy) ->
-    let inline guard x y =
-      if abs x > abs y then Horizontal <| x
-      else Vertical <| y
-    let positions = { model.positions with movementp = guard dx dy }
-    { model with positions = positions }
-    |> updateLightPath
-    , Cmd.none
+    let { lightpathes = lightpathes }, _ = init deps
+    { model with mode = Nothing
+                 lightpathes = lightpathes
+                 solved = Default
+                 judgedElements = []}, Cmd.none
   /// ---- Judgement ---
   | Mode Judgement ->
     let {current=current; pathes=pathes} = model.lightpathes.snake
@@ -282,7 +285,9 @@ let update (deps: IDeps) message model =
                    lightpathes = lightpathes
                    judgedElements = judgedElements }, Cmd.none
     else
-      init deps
+      let { lightpathes=lightpathes }, _ = init deps
+      { model with mode = Nothing
+                   lightpathes = lightpathes }, Cmd.none
     
 /// ==== ==== view ==== ====
 
@@ -347,19 +352,19 @@ let renderElements dispatch model grid =
   List.map f model.elements
 
 let redboxElements model grid =
-    let attr = [ "fill" => "#ff6347" 
-                 "fill-opacity" => 0.5 ]
-    let inline f {elm=elm; satisfy=satisfy} =
-      match elm, satisfy with
-        | HexagonDot p, false ->
-          renderRed attr p grid (grid.Step*0.2)
-        | Square (p,_), false
-        | Star (p,_), false
-        | Triangle (p,_,_), false
-        | Cancellation p, false ->
-          renderRed attr p grid (grid.Step - grid.Step*0.2)
-        | _ -> Empty
-    List.map f model.judgedElements
+  let attr = [ "fill" => "#ff6347" 
+               "fill-opacity" => 0.5 ]
+  let inline f {elm=elm; satisfy=satisfy} =
+    match elm, satisfy with
+      | HexagonDot p, false ->
+        renderRed attr p grid (grid.Step*0.2)
+      | Square (p,_), false
+      | Star (p,_), false
+      | Triangle (p,_,_), false
+      | Cancellation p, false ->
+        renderRed attr p grid (grid.Step - grid.Step*0.2)
+      | _ -> Empty
+  List.map f model.judgedElements
 
 let inline DisplayWhenMiss solved =
   match solved with
@@ -398,9 +403,8 @@ let view (deps: IDeps) model dispatch =
                                elt "feMergeNode" [ "in" => "coloredBlur" ] []
                                elt "feMergeNode" [ "in" => "SourceGraphic" ] []
                              ] ] ]
-  html [] [
-    head [] []
-    body [] [
+  div []
+      [
       div [ attr.classes [ "container1" ] ]
           [ div [] [ text <| "gridWidth: " + string grid.gridWidth
                      button [ on.click (fun _ -> dispatch (Inclease GridWidth)) ] [ text "+" ]
@@ -408,7 +412,7 @@ let view (deps: IDeps) model dispatch =
             div [] [ text <| "gridHeight: " + string grid.gridHeight
                      button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
                      button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
-            //div [] [ text <| "Mode: " + string model.mode ]
+            div [] [ text <| "Mode: " + string model.mode ]
             //div [] [ text <| "movement: " + string model.positions.movementp ]
             div [] [ text <| "Solved?: " + string model.solved ]
             div [ attr.classes [ "puzzle" ] ]
@@ -426,7 +430,7 @@ let view (deps: IDeps) model dispatch =
                                         (grid |> renderGrid) 
                                   group [ DisplayWhenMiss model.solved ]
                                         (grid |> redboxElements model)
-                                  group [] (grid |> renderElements dispatch model) 
+                                  group [ attr.id "PuzzleElements" ] (grid |> renderElements dispatch model) 
                                   group [ "stroke" => color2str White
                                           "fill" => color2str White  
                                           styles [ solvedGlow model.solved ] ]
@@ -440,54 +444,60 @@ let view (deps: IDeps) model dispatch =
           ]
       script [ "type" => "text/javascript" ] [
         text """
-  var entryElements = document.getElementsByClassName('PuzzleEntry');
-  for (var i = 0; i < entryElements.length; i++) {
-    var entry = entryElements[i];
-    entry.requestPointerLock = entry.requestPointerLock ||
-                               entry.mozRequestPointerLock ||
-                               entry.webkitRequestPointerLock;
-    document.exitPointerLock = document.exitPointerLock ||
-                               document.mozExitPointerLock ||
-                               document.webkitExitPointerLock;
-                                 
-    entry.onclick = start;
-    
-    function start () {
-      entry.requestPointerLock();
-    }
-    function end () {
-      document.exitPointerLock();
-      snakeEnd();
-    }
+'use strict';
+var entryElements = document.getElementById("PuzzleElements").getElementsByClassName("PuzzleEntry")
+                    || document.createElement('input');
 
-    if ("onpointerlockchange" in document) {
-      document.addEventListener('pointerlockchange', lockChangeAlert, false);
-    } else if ("onmozpointerlockchange" in document) {
-      document.addEventListner('mozpointerlockchange', lockChangeAlert, false);
-    }
+document.exitPointerLock = document.exitPointerLock ||
+                           document.mozExitPointerLock;
+function endS() {
+  document.exitPointerLock();
+  snakeEnd();
+}
 
-    function lockChangeAlert() {
-      if (document.pointerLockElement === entryElements[i] ||
-          document.mozPointerLockElement === entryElements[i] ||
-          document.webkitPointerLockElement === entryElements[i]) {
-        document.addEventListener("mousemove", updatePosition, false);
-        document.addEventListener("click", end);
-      } else {
-        document.removeEventListener("mousemove", updatePosition, false);
-        document.removeEventListener("click", end);
-      }
-    }
-    function updatePosition(e) {
-      DotNet.invokeMethodAsync('witness.Client', 'Main.MyApp.UpdatePositionAsync', e.movementX, e.movementY);
-    }
-    function snakeEnd() {
-      DotNet.invokeMethodAsync('witness.Client', 'Main.MyApp.SnakeEndAsync');
-    }
+function setPointerLock(a) {
+  a.requestPointerLock = a.requestPointerLock ||
+                         a.mozRequestPointerLock;
+  a.onclick = function() {
+    a.requestPointerLock();
+  };
+}
+Array.prototype.forEach.call(entryElements, setPointerLock);
+
+function lockChangeAlert() {
+  let cond = function(a) {
+    return (document.pointerLockElement === a ||
+            document.mozPointerLockElement === a);
+  };
+  if (Array.prototype.some.call(entryElements, cond) ) {
+    console.log('The pointer lock status is now locked.');
+    document.addEventListener("click", endS, {once: true});
+    document.addEventListener("mousemove", updatePosition, false);
+  } else {
+    console.log("The pointer lock status is now unlocked.");
+    //document.removeEventListener("click", endS);
+    document.removeEventListener("mousemove", updatePosition, false);
   }
+  console.log(document.mousemove);
+}
+
+if ("onpointerlockchange" in document) {
+  //document.addEventListener("pointerlockchange", lockChangeAlert, false);
+  document.onpointerlockchange = lockChangeAlert;
+} else if ("onmozpointerlockchange" in document) {
+  //document.addEventListener("mozpointerlockchange", lockChangeAlert, false);
+  document.onmozpointerlockchange = lockChangeAlert;
+}
+
+function updatePosition(e) {
+  DotNet.invokeMethodAsync('witness.Client', 'Main.MyApp.UpdatePositionAsync', e.movementX, e.movementY);
+}
+function snakeEnd() {
+  DotNet.invokeMethodAsync('witness.Client', 'Main.MyApp.SnakeEndAsync');
+}
 """
-      ]
-      ]
     ] 
+  ]
 
 type MyApp() =
   inherit ProgramComponent<Model, Message>()
