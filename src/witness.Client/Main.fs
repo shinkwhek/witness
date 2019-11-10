@@ -435,12 +435,7 @@ let view (deps: IDeps) model dispatch =
                                           "fill" => color2str White  
                                           styles [ solvedGlow model.solved ] ]
                                         (grid |> renderLightPath dispatch model.lightpathes) ]
-                          //group [ "transform" => "translate("
-                              //                   + offset + ","
-                              //                   + offset + ")" ]
-                              //  (grid |> renderEntryTouch dispatch model) // これ起因でちゃんとsnakeできないバグ
                         ] ]
-            // div [] [ text <| "snake: " + string model.lightpathes.snake ] 
           ]
       script [ "type" => "text/javascript" ] [
         text """
@@ -472,20 +467,20 @@ function lockChangeAlert() {
   if (Array.prototype.some.call(entryElements, cond) ) {
     console.log('The pointer lock status is now locked.');
     document.addEventListener("click", endS, {once: true});
-    document.addEventListener("mousemove", updatePosition, false);
+    //document.addEventListener("mousemove", updatePosition, false);
+    document.onmousemove = updatePosition;
   } else {
     console.log("The pointer lock status is now unlocked.");
     //document.removeEventListener("click", endS);
-    document.removeEventListener("mousemove", updatePosition, false);
+    //document.removeEventListener("mousemove", updatePosition, false);
+    document.onmousemove = () => console.log("mousemove off.");
   }
   console.log(document.mousemove);
 }
 
 if ("onpointerlockchange" in document) {
-  //document.addEventListener("pointerlockchange", lockChangeAlert, false);
   document.onpointerlockchange = lockChangeAlert;
 } else if ("onmozpointerlockchange" in document) {
-  //document.addEventListener("mozpointerlockchange", lockChangeAlert, false);
   document.onmozpointerlockchange = lockChangeAlert;
 }
 
