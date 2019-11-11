@@ -465,17 +465,16 @@ function lockChangeAlert() {
             document.mozPointerLockElement === a);
   };
   if (Array.prototype.some.call(entryElements, cond) ) {
-    console.log('The pointer lock status is now locked.');
+    //console.log('The pointer lock status is now locked.');
     document.addEventListener("click", endS, {once: true});
     //document.addEventListener("mousemove", updatePosition, false);
     document.onmousemove = updatePosition;
   } else {
-    console.log("The pointer lock status is now unlocked.");
+    //console.log("The pointer lock status is now unlocked.");
     //document.removeEventListener("click", endS);
     //document.removeEventListener("mousemove", updatePosition, false);
-    document.onmousemove = () => console.log("mousemove off.");
+    document.onmousemove = doNothing();
   }
-  console.log(document.mousemove);
 }
 
 if ("onpointerlockchange" in document) {
@@ -483,6 +482,8 @@ if ("onpointerlockchange" in document) {
 } else if ("onmozpointerlockchange" in document) {
   document.onmozpointerlockchange = lockChangeAlert;
 }
+
+function doNothing() {}
 
 function updatePosition(e) {
   DotNet.invokeMethodAsync('witness.Client', 'Main.MyApp.UpdatePositionAsync', e.movementX, e.movementY);
