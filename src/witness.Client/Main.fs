@@ -225,8 +225,13 @@ let update (deps: IDeps) message model =
   /// ---- mouse action ----
   | MouseMovement (dx, dy) ->
     let inline guard x y =
-      if abs x > abs y then Horizontal <| x
-                       else Vertical <| y
+      match x,y with
+      | x,y when x=0. && y =0. ->
+        NoMove
+      | x,y when abs x > abs y ->
+        Horizontal <| x
+      | _ ->
+        Vertical <| y
     let positions = { model.positions with movementp = guard dx dy }
     { model with positions = positions }
     |> updateLightPath
@@ -412,9 +417,9 @@ let view (deps: IDeps) model dispatch =
             div [] [ text <| "gridHeight: " + string grid.gridHeight
                      button [ on.click (fun _ -> dispatch (Inclease GridHeight)) ] [ text "+" ]
                      button [ on.click (fun _ -> dispatch (Declease GridHeight)) ] [ text "-" ] ]
-            div [] [ text <| "Mode: " + string model.mode ]
+            //div [] [ text <| "Mode: " + string model.mode ]
             //div [] [ text <| "movement: " + string model.positions.movementp ]
-            div [] [ text <| "Solved?: " + string model.solved ]
+            //div [] [ text <| "Solved?: " + string model.solved ]
             div [ attr.classes [ "puzzle" ] ]
                 [ svg [ "width" => grid.Width
                         "height" => grid.Height
