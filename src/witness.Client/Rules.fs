@@ -20,7 +20,7 @@ type JudgedElements =
 [<Struct>]
 type Solved = Default | Solved | Miss
 
-let inline skipEntryGoal jes =
+let skipEntryGoal jes =
   let inline f {elm=elm; satisfy=satisfy} =
     match elm with
       | Entry _ | Goal _ ->
@@ -46,7 +46,7 @@ let rec setSet grid pathes (s: Set<Point>) past (p: Point) =
 // ==== ==== Rules ==== ====
 
 let judgeHexagonDot pathes jes =
-  let inline rule {row=y; column=x} path =
+  let rule {row=y; column=x} path =
     let { head = {row=hy; column=hx}
           tail = {row=ty; column=tx} } = path
     let dx1, dy1 = tx-hx, ty-hy
@@ -55,7 +55,7 @@ let judgeHexagonDot pathes jes =
     dx1*dy2-dy1*dx2 = 0.
     && ( 1. >= dx2**2.+dy2**2. )
     && ( 1. >= dx3**2.+dy3**2. )
-  let inline f {elm=elm; satisfy=satisfy} =
+  let f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
       | HexagonDot p, false when List.exists (rule p) pathes ->
         { elm=elm; satisfy=true }
@@ -65,7 +65,7 @@ let judgeHexagonDot pathes jes =
 
 let judgeSquare pathes grid jes =
   let elements = jes |> List.map (fun {elm=elm} -> elm)  
-  let inline rule color origin =
+  let rule color origin =
     let otherColorSquarePoints =
       elements
       |> List.filter (function | Square(_,c) when c<>color -> true
@@ -74,7 +74,7 @@ let judgeSquare pathes grid jes =
     let set = setSet grid pathes (Set.ofList []) None origin
     List.forall (fun p -> not <| Set.contains p set) otherColorSquarePoints
 
-  let inline f {elm=elm; satisfy=satisfy} =
+  let f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
       | Square (origin, color), false when rule color origin ->
         { elm=elm; satisfy=true }
@@ -84,7 +84,7 @@ let judgeSquare pathes grid jes =
 
 let judgeStar pathes grid jes =
   let elements = jes |> List.map (fun {elm=elm} -> elm)
-  let inline rule color origin =
+  let rule color origin =
     let otherColorPoints =
       elements
       |> List.filter (function | Square(_,c) | Star(_,c) when c=color -> true
@@ -95,7 +95,7 @@ let judgeStar pathes grid jes =
     let set = Set.filter (fun p -> Set.contains p set) otherColorPoints
     set.Count = 2
 
-  let inline f {elm=elm; satisfy=satisfy} =
+  let f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
       | Star (origin, color), false when rule color origin ->
         { elm=elm; satisfy=true }
@@ -104,7 +104,7 @@ let judgeStar pathes grid jes =
   map f jes |> JE
 
 let judgeTriangle pathes jes =
-  let inline rule count (origin: Point) =
+  let rule count (origin: Point) =
     let around = origin.LookAroundIgnoreGrid
                  |> List.filter // straddles
                       (fun x -> List.exists
@@ -114,7 +114,7 @@ let judgeTriangle pathes jes =
     let count = match count with One -> 1 | Two -> 2 | Three -> 3
     around.Count = count
 
-  let inline f {elm=elm; satisfy=satisfy} =
+  let f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
       | Triangle (origin, _, count), false when rule count origin ->
         { elm=elm; satisfy=true }
