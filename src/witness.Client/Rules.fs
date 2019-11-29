@@ -9,7 +9,6 @@ type JudgedElement =
   { elm : Element
     satisfy : bool }
 
-[<Struct>]
 type JudgedElements =
   JE of JudgedElement list
   with
@@ -18,6 +17,7 @@ type JudgedElements =
     static member inline (>>=) (JE a, f) =
       f a
 
+[<Struct>]
 type Solved = Default | Solved | Miss
 
 let inline skipEntryGoal jes =
@@ -27,7 +27,7 @@ let inline skipEntryGoal jes =
         { elm=elm; satisfy=true }
       | _ ->
         { elm=elm; satisfy=satisfy }
-  List.map f jes |> JE
+  jes |> List.map f |> JE
 
 let rec setSet grid pathes (s: Set<Point>) past (p: Point) =
   let around = p.LookAround grid

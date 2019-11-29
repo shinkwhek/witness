@@ -37,6 +37,7 @@ let inline styles (styles: list<string>) : Attr =
 
 /// ==== ==== model ==== ====
 
+[<Struct>]
 type Mode =
   | Nothing
   | Judgement
@@ -90,7 +91,15 @@ let init (deps: IDeps) =
     elements = [ Entry {row=0.0; column=0.0}
                  Entry {row=3.0; column=3.0}
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
-                 HexagonDot {row=2.; column=2.}
+                 HexagonDot {row=1.; column=1.}
+                 Square ( {row=0.5; column=1.5}, Black )
+                 Triangle ( {row=0.5; column=2.5}, Orenge, Three)
+                 Star ( {row=1.5; column=0.5}, White )
+                 Star ( {row=1.5; column=1.5}, White )
+                 Star ( {row=1.5; column=2.5}, White )
+                 Square ( {row=2.5; column=0.5}, White )
+                 Square ( {row=2.5; column=1.5}, Black )
+                 Triangle ( {row=2.5; column=2.5}, Orenge, Two )
                  //Triangle ( {row=0.5; column=0.5}, Orenge, Two )
                  //Triangle ( {row=1.5; column=1.5}, Orenge, Two )
                  //Triangle ( {row=2.5; column=2.5}, Orenge, Three )
@@ -101,6 +110,7 @@ let init (deps: IDeps) =
 
 /// ==== ==== message ==== ====
 
+[<Struct>]
 type GridWH =
   | GridWidth
   | GridHeight
@@ -118,26 +128,30 @@ type Message =
 let updateElementPosition f wh model =
   let elements = model.elements
   let endX, endY = float <| model.grid.gridWidth - 1, float <| model.grid.gridHeight - 1
-  let g = (fun x -> match x, wh with
-                      // ---- Entry ----
-                      | Entry p, GridWidth when p.column = endX ->
-                        Entry {row=p.row; column=f p.column} 
-                      | Entry p, GridHeight when p.row = endY ->
-                        Entry {row=f p.row; column=p.column}
-                      // ---- Goal ----
-                      | Goal (p,t), GridWidth when p.column = endX ->
-                        Goal ( {row=p.row; column=f p.column},
-                               {row=t.row; column=f t.column} )
-                      | Goal (p,t), GridHeight when p.row = endY ->
-                        Goal ( {row=f p.row; column=p.column},
-                               {row=f t.row; column=t.column} )
-                      | e, _ -> e )
+  let inline g x =
+    match x, wh with
+    // ---- Entry ----
+    | Entry p, GridWidth when p.column = endX ->
+      Entry {row=p.row; column=f p.column} 
+    | Entry p, GridHeight when p.row = endY ->
+      Entry {row=f p.row; column=p.column}
+      // ---- Goal ----
+    | Goal (p,t), GridWidth when p.column = endX ->
+      Goal ( {row=p.row; column=f p.column},
+             {row=t.row; column=f t.column} )
+    | Goal (p,t), GridHeight when p.row = endY ->
+      Goal ( {row=f p.row; column=p.column},
+             {row=f t.row; column=t.column} )
+    | e, _ -> e
   let inline h x = 
     match x with
-      | Entry _ | Goal _ -> true
-      | _ -> false
-  let elements = List.filter h elements
-  let elements = List.map g elements
+    | Entry _ | Goal _ -> true
+    | _ -> false
+
+  let elements =
+    elements 
+    |> List.filter h 
+    |> List.map g
   { model with elements = elements }
 
 let updateSnake next model = 
@@ -206,7 +220,8 @@ let updateLightPath model =
         let next = if d > 0. then { pastPath.tail with row = pastPath.tail.row+1. }
                              else { pastPath.tail with row = pastPath.tail.row-1. }
         let inline guard d =
-          if ( height >= current.row && current.row >= 0.
+          if ( height >= current.row
+               && current.row >= 0.
                && (0.4 > abs(current.column - pastPath.tail.column)) )
              || isOnElement current model.elements
           then {row=current.row + d/movestep; column=pastPath.tail.column}
@@ -232,12 +247,14 @@ let update (deps: IDeps) message model =
         Horizontal <| x
       | _ ->
         Vertical <| y
+
     let positions = { model.positions with movementp = guard dx dy }
     { model with positions = positions }
     |> updateLightPath
     , Cmd.none
+  // --- Nop ---
   | Nop -> model, Cmd.none
-  /// --- edit grid ---
+  // --- edit grid ---
   | Inclease GridWidth ->
     let model = updateElementPosition (fun x -> x + 1.0) GridWidth model
     let grid = { grid with gridWidth = grid.gridWidth + 1 }
@@ -274,17 +291,17 @@ let update (deps: IDeps) message model =
     if isOnGoal current elements
     then
       let judgedElements = runJudge model.elements pathes model.grid
-      let solved = if judgedElements |> List.forall (fun {satisfy=satisfy} -> satisfy)
+      let solved = if judgedElements |> List.forall (fun {satisfy=s} -> s)
                    then Solved 
                    else Miss
       let lightpathes =
         match solved, pathes with
-          | Solved, {head=_; tail=tail}::_ ->
-            let goalpath = { head=tail; tail=current }
-            { model.lightpathes with goalpath=Some goalpath }
-          | _ ->
-            let i, _ = init deps
-            i.lightpathes
+        | Solved, {head=_; tail=tail}::_ ->
+          let goalpath = { head=tail; tail=current }
+          { model.lightpathes with goalpath=Some goalpath }
+        | _ ->
+          let i, _ = init deps
+          i.lightpathes
       { model with mode = Nothing
                    solved = solved
                    lightpathes = lightpathes
@@ -298,12 +315,12 @@ let update (deps: IDeps) message model =
 
 let isOnGoal model =
   match model.mode with
-    | PathDraw _ ->
-      let {current=current; pathes=pathes} = model.lightpathes.snake
-      if isOnGoal current model.elements
-      then Mode Judgement
-      else Mode Nothing
-    | _ -> Mode Nothing
+  | PathDraw _ ->
+    let {current=current; pathes=pathes} = model.lightpathes.snake
+    if isOnGoal current model.elements
+    then Mode Judgement
+    else Mode Nothing
+  | _ -> Mode Nothing
 
 let renderEntryTouch dispatch model grid =
   let inline f elm =
@@ -319,83 +336,79 @@ let renderEntryTouch dispatch model grid =
 let renderElements dispatch model grid =
   let inline f elm =
     match elm with
-      | Entry p ->
-        group [ //on.click (fun _ -> dispatch (Mode (PathDraw p)))
-                attr.classes ["PuzzleEntry"]
-              ] [
-            renderEntry [ "stroke" => color2str Black
-                          "fill" => color2str Black
-                          on.click (fun _ -> dispatch <| Mode (PathDraw p))
-                          //attr.classes ["PuzzleEntry"]
-                        ]
-                        p
-                        grid
-          ]
-      | Goal (p,t) ->
-        group [ "stroke" => color2str Black; "fill" => color2str Black ] [
-          renderGoal (p,t) grid
-        ]
-      | HexagonDot p ->
-        renderHexagonDot [ "stroke" => "gray"
-                           "fill" => "gray" ] p grid
-      | Square (p, color) ->
-        let color = color2str color
-        renderSquare [ "stroke" => color
-                       "fill" => color ] p grid
-      | Star (p, color) ->
-        let color = color2str color
-        renderStar [ "stroke" => color
+    | Entry p ->
+      group [ //on.click (fun _ -> dispatch (Mode (PathDraw p)))
+              attr.classes ["PuzzleEntry"]
+            ]
+            [ renderEntry [ "stroke" => color2str Black
+                            "fill" => color2str Black
+                            on.click (fun _ -> dispatch <| Mode (PathDraw p))
+                            //attr.classes ["PuzzleEntry"]
+                          ] p grid
+            ]
+    | Goal (p,t) ->
+      group [ "stroke" => color2str Black; "fill" => color2str Black ] [
+        renderGoal (p,t) grid
+      ]
+    | HexagonDot p ->
+      renderHexagonDot [ "stroke" => "gray"
+                         "fill" => "gray" ] p grid
+    | Square (p, color) ->
+      let color = color2str color
+      renderSquare [ "stroke" => color
                      "fill" => color ] p grid
-      | Triangle (p, color, count) ->
-        let color = color2str color
-        renderTriangle [ "stroke" => color
-                         "fill" => color ] p count grid
-      | Cancellation p ->
-        let color = color2str White
-        renderCancellation [ "stroke" => color
-                             "fill" => color ] p grid
-  List.map f model.elements
+    | Star (p, color) ->
+      let color = color2str color
+      renderStar [ "stroke" => color
+                   "fill" => color ] p grid
+    | Triangle (p, color, count) ->
+      let color = color2str color
+      renderTriangle [ "stroke" => color
+                       "fill" => color ] p count grid
+    | Cancellation p ->
+      let color = color2str White
+      renderCancellation [ "stroke" => color
+                           "fill" => color ] p grid
+  model.elements |> List.map f
 
 let redboxElements model grid =
   let attr = [ "fill" => "#ff6347" 
                "fill-opacity" => 0.5 ]
   let inline f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
-      | HexagonDot p, false ->
-        renderRed attr p grid (grid.Step*0.2)
-      | Square (p,_), false
-      | Star (p,_), false
-      | Triangle (p,_,_), false
-      | Cancellation p, false ->
-        renderRed attr p grid (grid.Step - grid.Step*0.2)
-      | _ -> Empty
-  List.map f model.judgedElements
+    | HexagonDot p, false ->
+      renderRed attr p grid (grid.Step*0.2)
+    | Square (p,_), false
+    | Star (p,_), false
+    | Triangle (p,_,_), false
+    | Cancellation p, false ->
+      renderRed attr p grid (grid.Step - grid.Step*0.2)
+    | _ -> Empty
+  model.judgedElements |> List.map f
 
 let inline DisplayWhenMiss solved =
   match solved with
-    | Miss -> "display" => "inline"
-    | _ -> "display" => "none"
+  | Miss -> "display" => "inline"
+  | _ -> "display" => "none"
 
 let renderLightPath dispatch lightpathes grid =
   match lightpathes with
-    | {entrypoint=Some entry; snake = { current=current; pathes=[] } } ->
-      (group [ ]
-        [ renderEntry [ ]
-                      entry grid ])
-      ::[ renderLine entry current grid ]
-    | {entrypoint=Some entry; snake = { current=current; pathes=pathes } } ->
-      let p2 = pathes.Head.tail
-      let path : Path = { head=current; tail=p2}
-      (group [ ]
-        [ renderEntry [ ] 
-                      entry grid ])
-      ::(List.map (fun {head=p1; tail=p2} -> renderLine p1 p2 grid) <| path::pathes)
-    | _ -> []
+  | {entrypoint=Some entry; snake = { current=current; pathes=[] } } ->
+    (group [ ]
+           [ renderEntry [ ] entry grid ])
+    ::[ renderLine entry current grid ]
+  | {entrypoint=Some entry; snake = { current=current; pathes=pathes } } ->
+    let p2 = pathes.Head.tail
+    let path : Path = { head=current; tail=p2}
+    (group [ ]
+           [ renderEntry [ ] entry grid ])
+    ::(path::pathes |> List.map (fun {head=p1; tail=p2} -> renderLine p1 p2 grid))
+  | _ -> []
 
 let inline solvedGlow solved =
   match solved with
-    | Solved -> "filter:url(#glow);"
-    | _ -> ""
+  | Solved -> "filter:url(#glow);"
+  | _ -> ""
 
 let view (deps: IDeps) model dispatch =
   let grid = model.grid

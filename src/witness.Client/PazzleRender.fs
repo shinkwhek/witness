@@ -7,13 +7,13 @@ open Bolero.Html
 open Svg
 open Pazzle
 
-let inline localPosition p (grid: Grid) =
+let localPosition p (grid: Grid) =
   let step = grid.Step
   let x = step * (p.column)
   let y = step * (p.row)
   x, y, step
 
-let inline renderLine (p1: Point) (p2: Point) (grid: Grid) =
+let renderLine (p1: Point) (p2: Point) (grid: Grid) =
   let x1, y1, step = localPosition p1 grid
   let x2, y2, _ = localPosition p2 grid
   let attr = [ "stroke-width" => step * 0.2
@@ -22,7 +22,7 @@ let inline renderLine (p1: Point) (p2: Point) (grid: Grid) =
 
 /// ---- ---- render grid ---- ----
 
-let inline renderGrid grid =
+let renderGrid grid =
   let endX = grid.gridWidth - 1
   let endY = grid.gridHeight - 1
   seq {

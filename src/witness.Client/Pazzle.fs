@@ -2,6 +2,7 @@ module Pazzle
 
 open System
 
+[<Struct>]
 type Color =
   | Black
   | White
@@ -18,6 +19,7 @@ type Color =
 let inline color2str (x: ^X) =
   (^X: (member ToStr : string) x)
   
+[<Struct>]
 type Grid =
   { gridWidth : int
     gridHeight : int }
@@ -33,12 +35,13 @@ type Grid =
   member inline x.Offset =
     { gridWidth=x.gridWidth - 1; gridHeight=x.gridHeight - 1 }
 
+[<Struct>]
 type Point =
   { row : float
     column : float } 
   static member inline Zero = { row=0.; column=0. }
   member inline x.Norm = sqrt (x.row**2. + x.column**2.)
-  member inline x.Unit =
+  member x.Unit =
     let norm = x.Norm
     { row = Math.Round(x.row / norm,0)
       column = Math.Round(x.column / norm,0) }
@@ -48,40 +51,41 @@ type Point =
     { row=a.row - b.row; column=a.column - b.column }
   static member inline (*) (a: float, b:Point) =
     { row= a*b.row ; column = a*b.column }
-  member inline x.SwitchDirection =
+  member x.SwitchDirection =
     if abs x.row > abs x.column 
-    then { x with column = 0. }
-    else { x with row = 0. }
-  member inline x.LookUp _ =
+    then { row = x.row ; column = 0. }
+    else { row = 0. ; column = x.column }
+  member x.LookUp _ =
     let x = x - {row=1.; column=0.}
     if x.row >= 0. then Some x else None
   member inline x.LookUpIgnoreGrid = x - {row=1.; column=0.}
-  member inline x.LookDown grid = 
+  member x.LookDown grid = 
     let x = x + {row=1.; column=0.}
     if float <| grid.gridHeight-1 >= x.row then Some x else None
   member inline x.LookDownIgnoreGrid = x + {row=1.; column=0.}
-  member inline x.LookRight grid =
+  member x.LookRight grid =
     let x = x + {row=0.; column=1.}
     if float <| grid.gridWidth-1 >= x.column then Some x else None
   member inline x.LookRightIgnoreGrid = x + {row=0.; column=1.}
-  member inline x.LookLeft _ =
+  member x.LookLeft _ =
     let x = x - {row=0.; column=1.}
     if x.column >= 0. then Some x else None
   member inline x.LookLeftIgnoreGrid = x - {row=0.; column=1.}
-  member inline x.LookAround grid =
+  member x.LookAround grid =
     let up, down = x.LookUp grid, x.LookDown grid
     let right, left = x.LookRight grid, x.LookLeft grid
     let rec filter r lst =
       match lst with
-        | [] -> r
-        | None::l -> filter r l
-        | (Some a)::l -> filter (a::r) l
+      | [] -> r
+      | None::l -> filter r l
+      | (Some a)::l -> filter (a::r) l
     filter [] [up; down; right; left]
-  member inline x.LookAroundIgnoreGrid =
+  member x.LookAroundIgnoreGrid =
     let up, down = x.LookUpIgnoreGrid, x.LookDownIgnoreGrid
     let right, left = x.LookRightIgnoreGrid, x.LookLeftIgnoreGrid
     [ up; down; right; left ]
 
+[<Struct>]
 type Path =
   { head : Point
     tail : Point }
@@ -94,6 +98,7 @@ type Path =
       1. > s1.Norm && 1. > s2.Norm
       && Path.Dot x {head=p1; tail=p2} = 0.
 
+[<Struct>]
 type Count = One | Two | Three
 
 type Element =
@@ -105,12 +110,12 @@ type Element =
   | Triangle of pos: Point * color: Color * count: Count
   | Cancellation of pos: Point
   with
-    member inline x.GetPos =
+    member x.GetPos =
       match x with
-        | Entry pos | Goal (pos,_) | HexagonDot pos
-        | Square (pos,_) | Star (pos,_)
-        | Triangle (pos,_,_)
-        | Cancellation pos -> pos
+      | Entry pos | Goal (pos,_) | HexagonDot pos
+      | Square (pos,_) | Star (pos,_)
+      | Triangle (pos,_,_)
+      | Cancellation pos -> pos
         
 
 type Elements = Element list
@@ -118,17 +123,17 @@ type Elements = Element list
 let inline isOnElement {row=y; column=x} elements =
   let inline f element =
     match element with
-      | Goal (_, {row=ty; column=tx}) ->
-        (ty = y && tx >= x && x >= 0.) ||
-        (tx = x && ty >= y && y >= 0.)
-      | _ -> true
-  (List.forall f elements)
+    | Goal (_, {row=ty; column=tx}) ->
+      (ty = y && tx >= x && x >= 0.) ||
+      (tx = x && ty >= y && y >= 0.)
+    | _ -> true
+  elements |> List.forall f
 
 let isOnGoal p elements =
   let inline f element =
     match element with
-      | Goal (_, tail) ->
-        0.1 > abs (tail.row - p.row) && 0.1 > abs (tail.column - p.column)
-      | _ -> false
-  (List.exists f elements)
+    | Goal (_, tail) ->
+      0.1 > abs (tail.row - p.row) && 0.1 > abs (tail.column - p.column)
+    | _ -> false
+  elements |> List.exists f
 
