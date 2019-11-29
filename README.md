@@ -23,7 +23,7 @@ $ dotnet run -p src/witness.Client
   - [x] : Square
   - [ ] : Tetris
   - [ ] : Hollow
-  - [ ] : Cancellation
+  - [x] : Cancellation
   - [x] : Triangle
   - [x] : Stars
 
