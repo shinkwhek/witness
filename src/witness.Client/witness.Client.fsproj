@@ -5,8 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Svg.fs" />
-    <Compile Include="Pazzle.fs" />
-    <Compile Include="PazzleRender.fs" />
+    <Compile Include="Puzzle.fs" />
+    <Compile Include="PuzzleRender.fs" />
     <Compile Include="Rules.fs" />
     <Compile Include="Main.fs" />
     <Compile Include="Startup.fs" />

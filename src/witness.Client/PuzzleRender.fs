@@ -1,11 +1,11 @@
-module PazzleRender
+module PuzzleRender
 
 open System
 
 open Bolero
 open Bolero.Html
 open Svg
-open Pazzle
+open Puzzle
 
 let localPosition p (grid: Grid) =
   let step = grid.Step

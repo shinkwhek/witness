@@ -1,4 +1,4 @@
-module Pazzle
+module Puzzle
 
 open System
 

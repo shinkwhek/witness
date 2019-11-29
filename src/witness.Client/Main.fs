@@ -5,8 +5,8 @@ open Elmish
 open Bolero
 open Bolero.Html
 open Svg
-open Pazzle
-open PazzleRender
+open Puzzle
+open PuzzleRender
 open Rules
 
 open Microsoft.AspNetCore.Components

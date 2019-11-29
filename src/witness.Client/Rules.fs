@@ -3,7 +3,7 @@ module Rules
 open FSharpPlus
 open FSharpPlus.Data
 
-open Pazzle
+open Puzzle
 
 type JudgedElement =
   { elm : Element
