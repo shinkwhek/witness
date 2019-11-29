@@ -91,19 +91,18 @@ let init (deps: IDeps) =
     elements = [ Entry {row=0.0; column=0.0}
                  Entry {row=3.0; column=3.0}
                  Goal ( {row=0.0; column=3.0}, {row=0.; column=3.2} )
-                 HexagonDot {row=1.; column=1.}
-                 Square ( {row=0.5; column=1.5}, Black )
-                 Triangle ( {row=0.5; column=2.5}, Orenge, Three)
-                 Star ( {row=1.5; column=0.5}, White )
-                 Star ( {row=1.5; column=1.5}, White )
-                 Star ( {row=1.5; column=2.5}, White )
-                 Square ( {row=2.5; column=0.5}, White )
-                 Square ( {row=2.5; column=1.5}, Black )
-                 Triangle ( {row=2.5; column=2.5}, Orenge, Two )
-                 //Triangle ( {row=0.5; column=0.5}, Orenge, Two )
+                 //HexagonDot {row=1.; column=1.}
+                 Square ( {row=0.5; column=0.5}, White )
+                 Square ( {row=0.5; column=2.5}, Black )
+                 Square ( {row=2.5; column=0.5}, Black )
+                 Square ( {row=2.5; column=1.5}, White )
+                 //Square ( {row=2.5; column=1.5}, Black )
+                 //Triangle ( {row=2.5; column=2.5}, Orenge, Two )
+                 Triangle ( {row=1.5; column=1.5}, Orenge, One )
                  //Triangle ( {row=1.5; column=1.5}, Orenge, Two )
                  //Triangle ( {row=2.5; column=2.5}, Orenge, Three )
-                 //Cancellation {row=1.5; column=2.5} 
+                 Cancellation {row=1.5; column=0.5}
+                 Cancellation {row=2.5; column=2.5}
                  ]
     judgedElements = [] }
   , Cmd.none

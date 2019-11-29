@@ -10,12 +10,13 @@ type JudgedElement =
     satisfy : bool }
 
 type JudgedElements =
-  JE of JudgedElement list
+  JE of jes:JudgedElement list
   with
     static member inline Return elms =
-      JE <| (List.map (fun e -> {elm=e; satisfy=false} ) elms)
-    static member inline (>>=) (JE a, f) =
-      f a
+      let jes = (List.map (fun e -> {elm=e; satisfy=false} ) elms)
+      JE <| jes
+    static member inline (>>=) (JE jes, f) =
+      f jes
 
 [<Struct>]
 type Solved = Default | Solved | Miss
@@ -81,7 +82,7 @@ let judgeSquare pathes grid jes =
       | _ ->
         { elm=elm; satisfy=satisfy }
   map f jes |> JE
-
+  
 let judgeStar pathes grid jes =
   let elements = jes |> List.map (fun {elm=elm} -> elm)
   let rule color origin =
@@ -122,16 +123,59 @@ let judgeTriangle pathes jes =
         {elm=elm; satisfy=satisfy}
   map f jes |> JE
 
+let judgeCancellation pathes grid jes =
+  let falseCancellations =
+    jes |> List.filter (function | {elm=Cancellation(_); satisfy=false} -> true
+                                 | _ -> false)
+  let mutable falseOthers =
+    jes |> List.filter (function | {elm=Cancellation(_)} -> false
+                                 | {satisfy=false} -> true
+                                 | _ -> false)
+  let trueOthers =
+    jes |> List.filter (function | {satisfy=true} -> true
+                                 | _ -> false)
+  let rec rule falseCancellations =
+    match falseCancellations with
+    | [] -> []
+    | {elm=Cancellation(origin)}::tl ->
+      let set = setSet grid pathes (Set.ofList []) None origin
+      let rec g isChange je =
+        match je with
+        | [] -> [], isChange
+        | h::l ->
+          if Set.contains (h |> (fun {elm=elm} -> elm) |> (fun x -> x.GetPos)) set
+          then l, true
+          else
+            let a, b = g false l
+            h::a, b
+          
+      let a, b = g false falseOthers
+      falseOthers <- a
+      {elm=Cancellation(origin); satisfy=b}::(rule tl)
+    | _ ->
+      falseCancellations
+
+  let falseCancellations = rule falseCancellations
+  JE (falseCancellations ++ falseOthers ++ trueOthers)
+
 // ==== ==== ==== ====
 
-let judgeRules elements pathes grid =
-  JudgedElements.Return elements
-  >>= skipEntryGoal
+let judgeRules pathes grid jes =
+  JE jes
   >>= judgeHexagonDot pathes
   >>= judgeSquare pathes grid
   >>= judgeStar pathes grid
   >>= judgeTriangle pathes
+  >>= judgeCancellation pathes grid
 
-let inline runJudge elements pathes grid =
-  let (JE jes) = judgeRules elements pathes grid
+let runJudge elements pathes grid =
+  let (JE jes) =
+    JudgedElements.Return elements
+    >>= skipEntryGoal
+    >>= judgeRules pathes grid
+    >>= (fun x ->
+          if List.forall (fun {satisfy=s} -> s) x
+          then JE x
+          else
+            judgeRules pathes grid x)
   jes
