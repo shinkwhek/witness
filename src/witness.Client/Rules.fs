@@ -30,7 +30,7 @@ let skipEntryGoal jes =
         { elm=elm; satisfy=satisfy }
   jes |> List.map f |> JE
 
-let rec setSet grid pathes (s: Set<Point>) past (p: Point) =
+let rec aroundClosedSpace grid pathes (s: Set<Point>) past (p: Point) =
   let around = p.LookAround grid
                |> List.filter // inside pathes
                     (fun x -> List.forall
@@ -41,7 +41,7 @@ let rec setSet grid pathes (s: Set<Point>) past (p: Point) =
   let around = around |> Set.filter (fun x -> not <| Set.contains x s)
   if around.IsEmpty
   then s
-  else let arounds = Set.map (setSet grid pathes ((around.Add p)+s) (Some p)) around
+  else let arounds = Set.map (aroundClosedSpace grid pathes ((around.Add p)+s) (Some p)) around
        Set.fold (+) (Set.ofList []) arounds
 
 // ==== ==== Rules ==== ====
@@ -72,8 +72,8 @@ let judgeSquare pathes grid jes =
       |> List.filter (function | Square(_,c) when c<>color -> true
                                | _ -> false)
       |> List.map (fun x -> x.GetPos)
-    let set = setSet grid pathes (Set.ofList []) None origin
-    List.forall (fun p -> not <| Set.contains p set) otherColorSquarePoints
+    let closedSpace = aroundClosedSpace grid pathes (Set.ofList []) None origin
+    List.forall (fun p -> not <| Set.contains p closedSpace) otherColorSquarePoints
 
   let f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
@@ -92,9 +92,9 @@ let judgeStar pathes grid jes =
                                | _ -> false )
       |> List.map (fun x -> x.GetPos)
       |> Set.ofList
-    let set = setSet grid pathes (Set.ofList []) None origin
-    let set = Set.filter (fun p -> Set.contains p set) otherColorPoints
-    set.Count = 2
+    let closedSpace = aroundClosedSpace grid pathes (Set.ofList []) None origin
+    let closedSpace = Set.filter (fun p -> Set.contains p closedSpace) otherColorPoints
+    closedSpace.Count = 2
 
   let f {elm=elm; satisfy=satisfy} =
     match elm, satisfy with
@@ -134,26 +134,26 @@ let judgeCancellation pathes grid jes =
   let trueOthers =
     jes |> List.filter (function | {satisfy=true} -> true
                                  | _ -> false)
-  let rec rule falseCancellations =
-    match falseCancellations with
+  let rec rule fCs =
+    match fCs with
     | [] -> []
     | {elm=Cancellation(origin)}::tl ->
-      let set = setSet grid pathes (Set.ofList []) None origin
-      let rec g isChange je =
+      let closedSpace = aroundClosedSpace grid pathes (Set.ofList []) None origin
+      let rec applyAllfalseOthers isChange je =
         match je with
         | [] -> [], isChange
         | h::l ->
-          if Set.contains (h |> (fun {elm=elm} -> elm) |> (fun x -> x.GetPos)) set
+          if Set.contains (h |> (fun {elm=elm} -> elm) |> (fun x -> x.GetPos)) closedSpace
           then l, true
           else
-            let a, b = g false l
+            let a, b = applyAllfalseOthers false l
             h::a, b
           
-      let a, b = g false falseOthers
+      let a, b = applyAllfalseOthers false falseOthers
       falseOthers <- a
       {elm=Cancellation(origin); satisfy=b}::(rule tl)
     | _ ->
-      falseCancellations
+      fCs
 
   let falseCancellations = rule falseCancellations
   JE (falseCancellations ++ falseOthers ++ trueOthers)
@@ -168,14 +168,15 @@ let judgeRules pathes grid jes =
   >>= judgeTriangle pathes
   >>= judgeCancellation pathes grid
 
+let cancellationLoop pathes grid jes =
+  if List.forall (fun {satisfy=s} -> s) jes
+  then JE jes
+  else judgeRules pathes grid jes
+
 let runJudge elements pathes grid =
   let (JE jes) =
     JudgedElements.Return elements
     >>= skipEntryGoal
     >>= judgeRules pathes grid
-    >>= (fun x ->
-          if List.forall (fun {satisfy=s} -> s) x
-          then JE x
-          else
-            judgeRules pathes grid x)
+    >>= cancellationLoop pathes grid
   jes
